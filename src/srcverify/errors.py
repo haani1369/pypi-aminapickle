@@ -88,3 +88,7 @@ class NoSourceRepo(SourceError):
 
 class UnresolvableRef(SourceError):
     """none of the candidate tags exist in the repository."""
+
+
+class AttestationError(SrcverifyError):
+    """a provenance bound to our artifact could not be trusted."""
