@@ -1,0 +1,42 @@
+ci and integration
+
+
+the gate
+
+    every change must pass the same four checks locally and in ci,
+    against the checked-in hashed lockfile:
+
+        black --check src tests
+        ruff check src tests
+        mypy
+        pytest
+
+    dependencies are installed from requirements-dev.lock with hashes
+    required, then the package itself is installed without deps, so
+    ci runs exactly the pinned versions.
+
+    ci runs on github actions, python 3.12, on push and pull request.
+
+
+the offline suite
+
+    the default pytest run is fully offline. it touches no network:
+    pypi responses are stubbed via the injected Fetcher, sdists are
+    tiny archives built in-process, and git operations run against
+    local repositories created in tmp_path. this is the suite ci
+    runs.
+
+
+the integration suite
+
+    tests marked "integration" exercise the real pipeline against
+    live pypi and github. they are deselected by default (see the
+    pytest addopts in pyproject) and run explicitly with:
+
+        pytest -m integration
+
+    because they depend on third-party state, they assert robust
+    properties rather than a fixed verdict: the pipeline completes
+    without raising, cleans up its workspace, resolves a recognized
+    repository url for a package that has one, and returns a status
+    in {match, mismatch, unverified}. ci does not run them.
