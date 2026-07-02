@@ -7,6 +7,8 @@ name = "pypi-aminapickle"
 version = "0.0.0"
 description = "verify that a pypi sdist matches its claimed source repo"
 requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "packaging==26.2",
     "cryptography==49.0.0",
