@@ -1,0 +1,138 @@
+requirements parser
+
+
+purpose
+
+    turn the text of a requirements file into a list of pinned
+    package entries to verify. the parser is the gate that enforces
+    the "pinned versions only" input contract: anything it cannot
+    reduce to an exact (name, version) pin is a hard error that
+    aborts the run before any network work happens.
+
+    module: src/srcverify/requirements.py
+
+
+data types
+
+    PinnedRequirement
+        a frozen dataclass with two fields:
+            name: str      canonical (pep 503 normalized) project
+                           name, lowercased, runs of -_. collapsed
+                           to a single -.
+            version: str   the exact version string, as written,
+                           validated as a pep 440 version.
+
+    parse_requirements(text: str) -> list[PinnedRequirement]
+        the one public entry point that does the work. pure: takes
+        the file contents as a string, returns entries in first-seen
+        order, performs no io. every error case below is raised from
+        here.
+
+    load_requirements(path: str) -> list[PinnedRequirement]
+        read the file at path (utf-8) and delegate to
+        parse_requirements. the only io in the module. a file that
+        cannot be read raises the underlying OSError unchanged.
+
+
+line handling
+
+    the text is processed line by line, with these rules applied
+    before a line is interpreted:
+
+        * a trailing backslash continues a line onto the next; the
+          joined result is treated as one logical line.
+        * everything from an unquoted # to end of line is a comment
+          and removed.
+        * surrounding whitespace is stripped.
+        * a line that is empty after the above is skipped.
+
+    each remaining logical line must be a single pinned requirement.
+
+
+what counts as pinned
+
+    a logical line is parsed with packaging.requirements.Requirement.
+    it is accepted only if all of these hold:
+
+        * it parses as a requirement,
+        * it carries exactly one version specifier,
+        * that specifier's operator is ==,
+        * the version contains no wildcard (no *),
+        * the version parses as a valid pep 440 version.
+
+    extras (pkg[extra]==1.2.3) are allowed and ignored: they do not
+    change which sdist is published for the version.
+
+    environment markers (pkg==1.2.3 ; python_version < "3.9") are
+    allowed and not evaluated. the package is verified regardless of
+    whether the marker would apply in this environment; verifying a
+    pin that would not be installed here is harmless.
+
+
+error model
+
+    all errors below subclass RequirementsError, which subclasses
+    the project base error SrcverifyError (src/srcverify/errors.py).
+    each error records the offending source line and a reason. no
+    error is swallowed; the parser raises on the first bad line.
+
+        UnpinnedRequirement
+            a parseable requirement that is not an exact == pin:
+            no specifier, a range or inequality, a == wildcard
+            (1.2.*), or === arbitrary-equality.
+
+        MalformedRequirement
+            a line packaging cannot parse as a requirement.
+
+        UnsupportedRequirementLine
+            a line that is not a plain requirement at all: an option
+            (begins with -), an include or constraint (-r, -c), an
+            editable install (-e), a local path (./x, ../x, /x), or
+            a url or vcs reference (name @ url, git+..., http...).
+            these cannot be verified against a pypi sdist and are
+            rejected rather than guessed at.
+
+        ConflictingPins
+            the same canonical name pinned to two different versions
+            across the file. the same name at the same version more
+            than once is not an error; duplicates collapse to one
+            entry.
+
+    SrcverifyError is the single base exception for the whole tool
+    and is introduced by this component in src/srcverify/errors.py.
+    later components add their own subclasses there.
+
+
+examples
+
+    accepted:
+        requests==2.31.0
+        Flask==3.0.0                      -> name "flask"
+        pyyaml==6.0.1
+        uvicorn[standard]==0.30.1         -> name "uvicorn"
+        httpx==0.27.0 ; python_version >= "3.8"
+
+    rejected:
+        requests                          UnpinnedRequirement
+        requests>=2.0                     UnpinnedRequirement
+        requests==2.*                     UnpinnedRequirement
+        requests===2.31.0                 UnpinnedRequirement
+        -r base.txt                       UnsupportedRequirementLine
+        -e .                              UnsupportedRequirementLine
+        ./local/pkg                       UnsupportedRequirementLine
+        pkg @ git+https://x/y.git         UnsupportedRequirementLine
+        ==1.0                             MalformedRequirement
+        requests==2.31.0 and flask==3     MalformedRequirement
+        (requests==2.31.0, then           ConflictingPins
+         requests==2.32.0)
+
+
+testing
+
+    parse_requirements is covered offline with in-memory strings:
+    one accepted case per accepted example, one rejected case per
+    error type, plus comment stripping, blank-line skipping, line
+    continuation, name canonicalization, extras, markers, and
+    duplicate collapsing. load_requirements is covered by writing a
+    temp file and reading it back, and by a read failure on a
+    missing path.
