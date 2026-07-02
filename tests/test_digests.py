@@ -1,7 +1,9 @@
 import hashlib
 from pathlib import Path
 
-from pypi_aminapickle.digests import file_digest
+from pypi_aminapickle.digests import EMPTY_SETUP_CFG_DIGEST, file_digest
+
+GENERATED_CFG = b"[egg_info]\ntag_build =\ntag_date = 0\n\n"
 
 # same options, but reformatted the way setuptools rewrites setup.cfg:
 # 4-space indent -> tab, comments dropped, and an [egg_info] section
@@ -78,3 +80,8 @@ def test_unparseable_setup_cfg_falls_back_to_bytes(tmp_path: Path) -> None:
     junk = b"this is not ini at all\n= broken\n"
     path = write(tmp_path, "j_setup.cfg", junk)
     assert file_digest("setup.cfg", path) == hashlib.sha256(junk).hexdigest()
+
+
+def test_generated_setup_cfg_matches_empty_digest(tmp_path: Path) -> None:
+    path = write(tmp_path, "g_setup.cfg", GENERATED_CFG)
+    assert file_digest("setup.cfg", path) == EMPTY_SETUP_CFG_DIGEST

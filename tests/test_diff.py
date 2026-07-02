@@ -1,4 +1,26 @@
 from pypi_aminapickle.diff import Finding, diff_trees
+from pypi_aminapickle.digests import EMPTY_SETUP_CFG_DIGEST
+
+
+def test_generated_only_setup_cfg_ignored() -> None:
+    # a sdist-only setup.cfg that is purely build-generated (empty
+    # after normalization) is not an extra finding
+    assert diff_trees({"setup.cfg": EMPTY_SETUP_CFG_DIGEST}, {}) == []
+
+
+def test_nested_generated_setup_cfg_ignored() -> None:
+    sdist = {"src/setup.cfg": EMPTY_SETUP_CFG_DIGEST}
+    assert diff_trees(sdist, {}) == []
+
+
+def test_sdist_only_setup_cfg_with_real_content_reported() -> None:
+    findings = diff_trees({"setup.cfg": "realconfig"}, {})
+    assert findings == [Finding(kind="extra", path="setup.cfg")]
+
+
+def test_altered_setup_cfg_still_reported() -> None:
+    findings = diff_trees({"setup.cfg": "9"}, {"setup.cfg": "1"})
+    assert findings == [Finding(kind="altered", path="setup.cfg")]
 
 
 def test_identical_trees_no_findings() -> None:

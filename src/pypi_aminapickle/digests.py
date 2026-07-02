@@ -37,3 +37,9 @@ def _sha256_stream(path: str) -> str:
         for chunk in iter(lambda: handle.read(65536), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+# the digest of a setup.cfg that carries no real configuration (only a
+# build-generated [egg_info] section, or nothing). a sdist-only setup.cfg
+# with this digest is purely build output, like PKG-INFO.
+EMPTY_SETUP_CFG_DIGEST = _sha256(_canonical_setup_cfg(b""))

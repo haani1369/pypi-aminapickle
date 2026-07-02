@@ -60,6 +60,13 @@ setup.cfg normalization
     reported. a setup.cfg that does not parse falls back to a plain
     byte digest.
 
+    a setup.py-based project usually has no setup.cfg in its repo,
+    but its sdist gets one containing only the generated [egg_info]
+    section. such a setup.cfg canonicalizes to an empty config; a
+    sdist-only setup.cfg with that empty digest is treated as build-
+    generated and not reported as an extra file. a sdist-only
+    setup.cfg carrying real configuration is still reported.
+
 
 public interface
 
