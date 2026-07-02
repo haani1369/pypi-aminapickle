@@ -40,6 +40,27 @@ what is compared, what is ignored
         * any of its "/"-separated components ends with ".egg-info".
 
 
+setup.cfg normalization
+
+    the digests the trees carry are content-normalized for one file,
+    setup.cfg, because setuptools rewrites it when building an sdist:
+    it re-serializes the file through configparser (dropping comments
+    and changing continuation indentation) and appends a generated
+    "[egg_info]" section. a byte comparison of setup.cfg therefore
+    reports a difference on packages that did not change anything.
+
+    to avoid that false positive without hiding real changes, the
+    digest of a file named setup.cfg is computed over a canonical
+    form: parse it with configparser, drop the "[egg_info]" section,
+    and hash the sorted (section, key, value) mapping. this is
+    applied identically to the sdist and the repo side (in
+    sdist_files and repo_files), so a setup.cfg that only differs by
+    setuptools' reformatting matches, while any real change to a
+    value (a dependency, an option) still changes the digest and is
+    reported. a setup.cfg that does not parse falls back to a plain
+    byte digest.
+
+
 public interface
 
     Finding (frozen dataclass)

@@ -1,12 +1,12 @@
 """clone a source repo at a ref and hash its tracked files."""
 
-import hashlib
 import os
 import shutil
 import subprocess
 from pathlib import PurePath
 from urllib.parse import urlparse
 
+from pypi_aminapickle.digests import file_digest
 from pypi_aminapickle.errors import CloneError, InvalidRepoUrl, RefNotFound
 
 _TIMEOUT = 300.0
@@ -103,7 +103,7 @@ def repo_files(checkout_dir: str) -> dict[str, str]:
             if os.path.islink(full):
                 continue
             key = PurePath(os.path.relpath(full, checkout_dir)).as_posix()
-            tree[key] = _sha256_file(full)
+            tree[key] = file_digest(key, full)
     return tree
 
 
@@ -129,11 +129,3 @@ def _git_env() -> dict[str, str]:
     env["GIT_CONFIG_NOSYSTEM"] = "1"
     env["GIT_CONFIG_GLOBAL"] = os.devnull
     return env
-
-
-def _sha256_file(path: str) -> str:
-    digest = hashlib.sha256()
-    with open(path, "rb") as handle:
-        for chunk in iter(lambda: handle.read(65536), b""):
-            digest.update(chunk)
-    return digest.hexdigest()

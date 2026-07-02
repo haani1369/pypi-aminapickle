@@ -1,7 +1,6 @@
 """safely extract an untrusted sdist into a digest tree."""
 
 import functools
-import hashlib
 import os
 import stat
 import tarfile
@@ -9,6 +8,7 @@ import zipfile
 from collections.abc import Callable
 from pathlib import PurePath, PurePosixPath
 
+from pypi_aminapickle.digests import file_digest
 from pypi_aminapickle.errors import MalformedArchive, UnsafeArchiveEntry
 
 _Reader = Callable[[], bytes]
@@ -30,7 +30,7 @@ def sdist_files(root: str) -> dict[str, str]:
         for filename in filenames:
             full = os.path.join(dirpath, filename)
             key = PurePath(os.path.relpath(full, root)).as_posix()
-            tree[key] = _sha256_file(full)
+            tree[key] = file_digest(key, full)
     return tree
 
 
@@ -141,11 +141,3 @@ def _place(dest_dir: str, name: str, kind: str, read: _Reader) -> None:
     os.makedirs(os.path.dirname(target), exist_ok=True)
     with open(target, "wb") as handle:
         handle.write(read())
-
-
-def _sha256_file(path: str) -> str:
-    digest = hashlib.sha256()
-    with open(path, "rb") as handle:
-        for chunk in iter(lambda: handle.read(65536), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
