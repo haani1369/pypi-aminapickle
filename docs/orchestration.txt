@@ -72,10 +72,18 @@ command line
     cli.py turns a requirements file into a report and an exit code.
 
         run(argv, *, verify, stdout, stderr) -> int
-            parse argv (a requirements path, and --json), load the
-            requirements, verify each package with the injected
-            verify callable, print the report, and return the exit
-            code. injecting verify keeps run offline-testable.
+            parse argv (a requirements path, --json, and --jobs),
+            load the requirements, verify each package with the
+            injected verify callable, print the report, and return
+            the exit code. injecting verify keeps run offline-
+            testable.
+
+            packages are verified concurrently on a thread pool (each
+            verify_package is network- and git-bound and holds its
+            own workspace, so the work is independent). --jobs bounds
+            the pool (default 8); --jobs 1 runs serially. results are
+            always reported in requirements-file order regardless of
+            completion order.
 
         main(argv=None) -> int
             wire run with the real verify_package and the process
@@ -116,3 +124,5 @@ testing
         * --json -> stdout parses as json.
         * an unpinned requirement -> return 2 and a stderr message.
         * a missing requirements file -> return 2.
+        * several packages are reported in file order under the
+          default parallel path and under --jobs 1.

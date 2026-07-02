@@ -1,5 +1,6 @@
 import io
 import json
+import time
 from collections.abc import Callable
 from pathlib import Path
 
@@ -78,3 +79,52 @@ def test_missing_file_returns_two(tmp_path: Path) -> None:
         stderr=err,
     )
     assert code == 2
+
+
+def reordering_verifier() -> Callable[[PinnedRequirement], PackageResult]:
+    # earlier-listed packages finish later, so completion order differs
+    # from file order; the report must still be in file order
+    delays = {"a": 0.03, "b": 0.015, "c": 0.0}
+
+    def verify(req: PinnedRequirement) -> PackageResult:
+        time.sleep(delays.get(req.name, 0.0))
+        return PackageResult(
+            name=req.name,
+            version=req.version,
+            status="match",
+            reason="reason",
+            repo_url="https://github.com/o/r",
+            ref="v1.0",
+            findings=[],
+        )
+
+    return verify
+
+
+def reported_names(output: str) -> list[str]:
+    names = []
+    for line in output.splitlines():
+        if line.startswith("[MATCH] "):
+            names.append(line.split(" ", 2)[1].split("==")[0])
+    return names
+
+
+def test_parallel_reports_in_file_order(tmp_path: Path) -> None:
+    path = write_reqs(tmp_path, "a==1.0\nb==1.0\nc==1.0\n")
+    out, err = io.StringIO(), io.StringIO()
+    code = run([path], verify=reordering_verifier(), stdout=out, stderr=err)
+    assert code == 0
+    assert reported_names(out.getvalue()) == ["a", "b", "c"]
+
+
+def test_jobs_one_reports_in_file_order(tmp_path: Path) -> None:
+    path = write_reqs(tmp_path, "a==1.0\nb==1.0\nc==1.0\n")
+    out, err = io.StringIO(), io.StringIO()
+    code = run(
+        [path, "--jobs", "1"],
+        verify=reordering_verifier(),
+        stdout=out,
+        stderr=err,
+    )
+    assert code == 0
+    assert reported_names(out.getvalue()) == ["a", "b", "c"]

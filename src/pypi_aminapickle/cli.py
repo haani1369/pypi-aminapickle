@@ -3,6 +3,7 @@
 import argparse
 import sys
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from typing import TextIO
 
 from pypi_aminapickle.errors import RequirementsError
@@ -34,10 +35,20 @@ def run(
     except OSError as exc:
         print(f"cannot read {args.requirements}: {exc}", file=stderr)
         return 2
-    results = [verify(req) for req in requirements]
+    results = _verify_all(requirements, verify, args.jobs)
     text = render_json(results) if args.json else render_text(results)
     print(text, file=stdout)
     return 0 if all_match(results) else 1
+
+
+def _verify_all(
+    requirements: list[PinnedRequirement], verify: _Verifier, jobs: int
+) -> list[PackageResult]:
+    workers = min(jobs, len(requirements))
+    if workers <= 1:
+        return [verify(req) for req in requirements]
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        return list(executor.map(verify, requirements))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -59,5 +70,11 @@ def _parse(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--json", action="store_true", help="emit json instead of text"
+    )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=8,
+        help="max packages to verify in parallel (default 8)",
     )
     return parser.parse_args(argv)
