@@ -1,0 +1,105 @@
+repo clone
+
+
+purpose
+
+    clone a source repository at a claimed ref into the workspace
+    and present its tracked file contents as a mapping from relative
+    path to digest, comparable to the sdist tree. the repo url comes
+    from untrusted pypi metadata, so it is validated before git ever
+    sees it, and git is run with a hardened, non-interactive
+    configuration and never through a shell.
+
+    module: src/srcverify/repo.py
+
+
+url validation
+
+    validate_repo_url(url: str) -> str
+        accept only a plain https url with a host, and return it
+        unchanged. everything else is InvalidRepoUrl:
+
+            * a scheme other than https (http, ssh, git, file),
+            * a git transport helper (ext::..., anything with ::),
+            * an scp-style ssh address (git@host:path),
+            * a value starting with "-" (would look like a git
+              option),
+            * an https url with an empty host.
+
+        this is the guard the orchestrator runs before cloning. the
+        ext:: and file transports are the notable remote-code and
+        local-escape vectors and are rejected here.
+
+
+cloning
+
+    clone_repo(url: str, ref: str, dest_dir: str) -> str
+        clone url into a subdirectory of dest_dir with no working
+        tree, then check out ref detached. return the checkout path.
+
+        git is invoked as an argument vector (never a shell) with a
+        fixed timeout and this hardening, so an untrusted repo cannot
+        run code or reach other transports:
+
+            * env: GIT_TERMINAL_PROMPT=0 (never prompt for creds),
+              GIT_CONFIG_NOSYSTEM=1, GIT_CONFIG_GLOBAL=os.devnull
+              (ignore ambient config),
+            * -c protocol.ext.allow=never (kill the ext:: rce
+              transport), -c protocol.file.allow=user (permit only a
+              user-initiated top-level file clone, not file
+              submodules),
+            * -c core.hooksPath=os.devnull (no hook execution),
+            * submodules are never initialized.
+
+        both url and ref are additionally refused if they start with
+        "-", and are passed after "--", so neither can be read as an
+        option.
+
+        a clone that fails (unreachable, auth required, not a repo)
+        is CloneError. a checkout that fails because the ref does not
+        exist is RefNotFound.
+
+        clone_repo assumes url already passed validate_repo_url; it
+        does not re-check the scheme, so tests may clone from a local
+        path. the orchestrator always validates first.
+
+    repo_files(checkout_dir: str) -> dict[str, str]
+        walk the checkout and return a mapping from posix relative
+        path to the lowercase hex sha256 of each regular file's
+        bytes. the .git directory is excluded. symlinks are skipped
+        rather than followed, so the walk cannot read outside the
+        checkout. the digest convention matches sdist_files, so the
+        two trees are directly comparable.
+
+
+error model
+
+    added to src/srcverify/errors.py, subclassing SrcverifyError:
+
+        RepoError        base for this module
+        InvalidRepoUrl   url failed validation
+        CloneError       git clone failed
+        RefNotFound      the claimed ref does not exist in the repo
+
+    all three subclass RepoError. none is swallowed.
+
+
+testing
+
+    url validation is pure and tested offline: an https github url is
+    accepted; http, file://, ext::sh -c id, git@github.com:o/r.git,
+    a leading-dash value, and https:// with no host each raise
+    InvalidRepoUrl.
+
+    cloning is tested offline against local git repositories built in
+    tmp_path (git init, commit files, tag a release), used as the
+    clone source so no network is touched:
+
+        * cloning at a tag yields a checkout whose repo_files matches
+          the committed files and their sha256 digests.
+        * cloning at the commit sha of that tag yields the same tree.
+        * .git is absent from repo_files output.
+        * a committed symlink does not appear in repo_files.
+        * a nonexistent ref raises RefNotFound.
+        * cloning a path that is not a repository raises CloneError.
+        * error types subclass RepoError subclass SrcverifyError.
