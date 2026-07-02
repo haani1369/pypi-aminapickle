@@ -1,0 +1,28 @@
+# a tour of what pypi-aminapickle reports. run:
+#     pypi-aminapickle examples/requirements.txt
+# results reflect live pypi + github state and may shift over time.
+
+# match, verified by a pep 740 attestation: the exact build commit is
+# read from the signed provenance, the signature + fulcio chain +
+# identity are checked, and the sdist matches that commit.
+id==1.5.0
+
+# match, resolved by version-normalized tag matching: the repo tags
+# this calver release "2024.02.02" while the pin is "2024.2.2".
+certifi==2024.2.2
+
+# mismatch: the sdist ships files absent from the tagged source,
+# here gpg private test keys under tests/keys/.
+distlib==0.3.8
+
+# mismatch: the sdist ships a compiled bytecode file that is not in
+# the source repo.
+PyYAML==6.0.2
+
+# unverified: the project's metadata has no repository on a
+# recognized host, so the source link cannot be established.
+pytz==2024.1
+
+# unverified: the sdist contains a symlink, which the hardened
+# extraction refuses rather than following.
+docutils==0.21.2

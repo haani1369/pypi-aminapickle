@@ -42,6 +42,18 @@ each package is reported as one of:
                  unresolvable tag, a failed download, and so on).
 
 
+examples
+
+    examples/requirements.txt is a guided tour over real packages that
+    exercise every verdict: an attestation-verified match, a calver
+    tag resolved by normalization, sdists that ship files absent from
+    their source (a divergence), a package with no recognized repo,
+    and one whose sdist contains a symlink the extraction refuses.
+    run it and read examples/README.txt for what each case shows:
+
+        pypi-aminapickle examples/requirements.txt
+
+
 develop
 
     the design lives in docs/. each component has a spec written before
