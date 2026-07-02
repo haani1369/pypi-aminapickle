@@ -9,6 +9,7 @@ description = "verify that a pypi sdist matches its claimed source repo"
 requires-python = ">=3.12"
 dependencies = [
     "packaging==26.2",
+    "cryptography==49.0.0",
 ]
 
 [project.optional-dependencies]
