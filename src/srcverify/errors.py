@@ -76,3 +76,15 @@ class CloneError(RepoError):
 
 class RefNotFound(RepoError):
     """the claimed ref does not exist in the repository."""
+
+
+class SourceError(SrcverifyError):
+    """base for source resolution failures."""
+
+
+class NoSourceRepo(SourceError):
+    """no recognized repository url in the metadata."""
+
+
+class UnresolvableRef(SourceError):
+    """none of the candidate tags exist in the repository."""
