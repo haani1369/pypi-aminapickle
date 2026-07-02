@@ -61,10 +61,24 @@ public functions
             [f"v{version}", version, f"release-{version}",
              f"{name}-{version}"]
 
-    select_ref(candidates: list[str], available: list[str]) -> str
-        return the first candidate that appears in available (the
-        repo's actual ref names). if none appears, raise
-        UnresolvableRef.
+    resolve_ref(name: str, version: str, available: list[str]) -> str
+        pick the ref among available (the repo's actual tag and
+        branch names) that corresponds to version, in two passes:
+
+        first, an exact pass: the first entry of candidate_refs that
+        appears verbatim in available.
+
+        then, a normalized pass, for tags that spell the version
+        differently: for each available ref, strip a leading "v" or
+        a known release prefix, parse the remainder as a pep 440
+        version, and accept it when it equals Version(version).
+        because pep 440 parsing normalizes zero-padding and trailing
+        zeros, this matches tags like "2024.02.02" against version
+        "2024.2.2", or "v1.2" against "1.2.0".
+
+        the exact pass runs first so ordinary tags keep their
+        current, predictable result. if neither pass finds a ref,
+        raise UnresolvableRef.
 
 
 error model
@@ -103,7 +117,12 @@ testing
               ["v2.31.0", "2.31.0", "release-2.31.0",
                "requests-2.31.0"].
 
-        select_ref:
-            * returns the first candidate present in available.
-            * candidate order wins when several are available.
-            * no candidate present raises UnresolvableRef.
+        resolve_ref:
+            * an exact candidate present in available is returned,
+              candidate order winning when several are present.
+            * a zero-padded calver tag ("2024.02.02") is matched for
+              version "2024.2.2" via the normalized pass.
+            * a "v"-prefixed tag with trailing-zero differences
+              ("v1.2") is matched for version "1.2.0".
+            * a repo whose only refs are unrelated raises
+              UnresolvableRef.

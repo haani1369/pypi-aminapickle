@@ -2,8 +2,12 @@
 
 from urllib.parse import urlparse
 
+from packaging.version import InvalidVersion, Version
+
 from pypi_aminapickle.errors import NoSourceRepo, UnresolvableRef
 from pypi_aminapickle.pypi import Metadata
+
+_REF_PREFIXES = ("v", "release-", "release/", "rel-", "rel/")
 
 _HOSTS = frozenset(
     {"github.com", "gitlab.com", "bitbucket.org", "codeberg.org"}
@@ -37,12 +41,32 @@ def candidate_refs(name: str, version: str) -> list[str]:
     ]
 
 
-def select_ref(candidates: list[str], available: list[str]) -> str:
+def resolve_ref(name: str, version: str, available: list[str]) -> str:
     known = set(available)
-    for candidate in candidates:
+    for candidate in candidate_refs(name, version):
         if candidate in known:
             return candidate
-    raise UnresolvableRef(f"no candidate tag among {candidates}")
+    try:
+        target = Version(version)
+    except InvalidVersion:
+        target = None
+    if target is not None:
+        for ref in available:
+            parsed = _ref_version(ref, name)
+            if parsed is not None and parsed == target:
+                return ref
+    raise UnresolvableRef(f"no ref for {name} {version} among {available}")
+
+
+def _ref_version(ref: str, name: str) -> Version | None:
+    for prefix in (*_REF_PREFIXES, f"{name}-", f"{name}/"):
+        if ref.startswith(prefix):
+            ref = ref[len(prefix) :]
+            break
+    try:
+        return Version(ref)
+    except InvalidVersion:
+        return None
 
 
 def _normalize_label(label: str) -> str:

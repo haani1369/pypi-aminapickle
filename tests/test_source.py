@@ -7,7 +7,11 @@ from pypi_aminapickle.errors import (
     UnresolvableRef,
 )
 from pypi_aminapickle.pypi import Metadata
-from pypi_aminapickle.source import candidate_refs, resolve_repo_url, select_ref
+from pypi_aminapickle.source import (
+    candidate_refs,
+    resolve_ref,
+    resolve_repo_url,
+)
 
 
 def metadata(project_urls: dict[str, str]) -> Metadata:
@@ -97,17 +101,28 @@ def test_candidate_refs_order() -> None:
     ]
 
 
-def test_select_ref_first_present() -> None:
-    assert select_ref(["v1.0.0", "1.0.0"], ["main", "v1.0.0"]) == "v1.0.0"
+def test_resolve_ref_exact_candidate() -> None:
+    assert resolve_ref("pkg", "1.0.0", ["main", "v1.0.0"]) == "v1.0.0"
 
 
-def test_select_ref_candidate_order_wins() -> None:
-    assert select_ref(["1.0.0", "v1.0.0"], ["v1.0.0", "1.0.0"]) == "1.0.0"
+def test_resolve_ref_candidate_order_wins() -> None:
+    # v{version} is tried before {version}; both exist
+    assert resolve_ref("pkg", "1.0.0", ["1.0.0", "v1.0.0"]) == "v1.0.0"
 
 
-def test_select_ref_none_present() -> None:
+def test_resolve_ref_zero_padded_calver() -> None:
+    assert resolve_ref("certifi", "2024.2.2", ["main", "2024.02.02"]) == (
+        "2024.02.02"
+    )
+
+
+def test_resolve_ref_trailing_zero_with_prefix() -> None:
+    assert resolve_ref("pkg", "1.2.0", ["v1.2"]) == "v1.2"
+
+
+def test_resolve_ref_none_matches() -> None:
     with pytest.raises(UnresolvableRef):
-        select_ref(["v1.0.0"], ["main", "dev"])
+        resolve_ref("pkg", "1.0.0", ["main", "dev"])
 
 
 def test_error_hierarchy() -> None:

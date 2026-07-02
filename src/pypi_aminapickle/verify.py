@@ -25,7 +25,7 @@ from pypi_aminapickle.repo import (
 from pypi_aminapickle.report import PackageResult
 from pypi_aminapickle.requirements import PinnedRequirement
 from pypi_aminapickle.sdist import extract_sdist, sdist_files
-from pypi_aminapickle.source import candidate_refs, resolve_repo_url, select_ref
+from pypi_aminapickle.source import resolve_ref, resolve_repo_url
 from pypi_aminapickle.workspace import workspace
 
 _RefLister = Callable[[str], list[str]]
@@ -64,10 +64,7 @@ def verify_package(
                 ref = attested.commit
             else:
                 repo_url = validate_repo_url(resolve_repo_url(metadata))
-                ref = select_ref(
-                    candidate_refs(req.name, req.version),
-                    list_refs(repo_url),
-                )
+                ref = resolve_ref(req.name, req.version, list_refs(repo_url))
             repo_tree = repo_files(clone(repo_url, ref, work))
         except PypiAminapickleError as exc:
             return _result(req, "unverified", str(exc), repo_url, ref, [])
