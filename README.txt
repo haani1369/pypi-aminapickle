@@ -15,6 +15,22 @@ whether a package is safe; it reports whether the artifact matches
 its public source.
 
 
+why it matters
+
+    a normal install trusts pypi to serve the code the maintainer
+    published, but never checks that against the public source. most
+    of the time that trust holds; when it doesn't, a compromised
+    account or a tampered upload can ship code the tagged source never
+    had, and nothing in the usual flow would notice.
+
+    that is the one gap this closes, and nothing more. it does not
+    prove a package is safe, replace a vulnerability scanner, or see
+    past the sdist, and plenty of packages it simply cannot verify. it
+    is a small, best-effort check, and "i can't verify this" is treated
+    as an honest answer rather than a failure. mostly it is an excuse
+    to take an idea that is usually hand-waved and make it concrete.
+
+
 how it works
 
     for each pinned package it fetches the pypi metadata, downloads
