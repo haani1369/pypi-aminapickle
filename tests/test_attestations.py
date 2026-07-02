@@ -71,6 +71,21 @@ def test_subject_mismatch_raises() -> None:
         resolve_attested_source(NAME, VERSION, FILENAME, "0" * 64, fetch)
 
 
+def test_tampered_signature_raises() -> None:
+    data = json.loads(fixture_bytes())
+    envelope = data["attestation_bundles"][0]["attestations"][0]["envelope"]
+    signature = bytearray(base64.b64decode(envelope["signature"]))
+    signature[-1] ^= 0xFF
+    envelope["signature"] = base64.b64encode(bytes(signature)).decode()
+    body = json.dumps(data).encode()
+    url = provenance_url(NAME, VERSION, FILENAME)
+    fetch = make_fetch({url: body})
+    with pytest.raises(AttestationError):
+        resolve_attested_source(
+            NAME, VERSION, FILENAME, fixture_sha256(), fetch
+        )
+
+
 def test_no_provenance_returns_none() -> None:
     fetch = make_fetch({})
     result = resolve_attested_source(NAME, VERSION, FILENAME, "0" * 64, fetch)

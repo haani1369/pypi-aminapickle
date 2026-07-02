@@ -14,21 +14,39 @@ purpose
     module: src/pypi_aminapickle/attestations.py
 
 
-what is trusted, what is not
+what is verified
 
-    pypi-aminapickle does one independent check on the attestation: the
-    statement's subject sha256 must equal the sha256 of the sdist we
-    actually downloaded, so the provenance is bound to our bytes and
-    not some other artifact.
+    the attestation is checked independently before its repo and
+    commit are trusted:
 
-    pypi-aminapickle does not re-run the full sigstore/fulcio/rekor
-    signature verification. it relies on pypi having verified the
-    attestation server-side under trusted publishing, and reads the
-    claimed source repo and commit from the certificate. this is a
-    deliberate boundary: bringing the entire sigstore trust stack
-    in-process is a much larger project. the tool's own guarantee is
-    unchanged, "does this sdist match the source at the claimed
-    point"; the attestation only supplies a better claim.
+        * subject binding: the statement's subject sha256 must equal
+          the sha256 of the sdist we actually downloaded, so the
+          provenance is about our bytes and not some other artifact.
+        * signature: the dsse signature over the statement must
+          verify under the certificate's public key (the pre-auth
+          encoding "DSSEv1 ..." of payload type
+          application/vnd.in-toto+json and the statement, ecdsa over
+          p-256).
+        * chain of trust: the signing certificate must chain, by
+          signature, to the pinned sigstore fulcio intermediate and
+          root bundled at fulcio_roots.pem.
+        * identity binding: the certificate's subject-alternative-
+          name oidc identity must belong to the same source
+          repository the certificate declares (and that we clone), so
+          the signer cannot claim one repo while being another.
+
+    a bound attestation that fails any of these is AttestationError,
+    not a silent fall back.
+
+    boundary (documented, not done): pypi-aminapickle does not verify
+    rekor transparency-log inclusion, does not check the short-lived
+    fulcio certificate's validity window against a trusted timestamp
+    (it has no rekor time to check against), and pins the fulcio
+    roots in-tree rather than following tuf root rotation. these are
+    the parts of a full sigstore verifier that pull in the whole
+    sigstore/tuf stack; the checks above still establish that a
+    sigstore-issued certificate for the claimed repository signed a
+    statement over our exact sdist.
 
 
 the provenance shape (untrusted)
@@ -48,8 +66,15 @@ the provenance shape (untrusted)
         1.3.6.1.4.1.57264.1.12  source repository uri
         1.3.6.1.4.1.57264.1.13  source repository digest (commit)
 
-    each extension value is a der utf8string. every field is treated
-    as untrusted and validated on access.
+    and, in its subject-alternative-name, the oidc identity uri of
+    the workflow that signed (e.g. the github repo + workflow + ref).
+    envelope.signature is the base64 dsse signature over the
+    statement. every field is treated as untrusted and validated on
+    access.
+
+    the pinned sigstore fulcio root and intermediate certificates
+    live in src/pypi_aminapickle/fulcio_roots.pem and are shipped as
+    package data.
 
 
 public interface
@@ -79,7 +104,10 @@ public interface
             * the subject sha256 does not match sdist_sha256,
             * the statement or certificate is malformed,
             * the certificate lacks the source uri/commit extensions,
-            * the source uri is not a valid https repo url.
+            * the source uri is not a valid https repo url,
+            * the dsse signature does not verify under the cert,
+            * the cert does not chain to the pinned fulcio roots,
+            * the cert identity does not match the source repo.
 
         raising rather than silently falling back here is deliberate:
         an attestation that binds to our bytes but contradicts or
@@ -102,11 +130,14 @@ testing
     fetcher:
 
         * provenance_url percent-encodes its segments.
-        * the real fixture, with the matching sdist sha256, resolves
-          to repo_url "https://github.com/pyca/cryptography" and the
-          commit from the certificate.
+        * the real fixture, with the matching sdist sha256, fully
+          verifies (subject, dsse signature, fulcio chain, identity)
+          and resolves to repo_url "https://github.com/pyca/
+          cryptography" and the commit from the certificate.
         * the same fixture with a non-matching sha256 raises
           AttestationError.
+        * the fixture with its dsse signature bytes tampered raises
+          AttestationError (the signature no longer verifies).
         * a fetch that raises FetchError yields None.
         * a provenance object with empty attestation_bundles yields
           None.

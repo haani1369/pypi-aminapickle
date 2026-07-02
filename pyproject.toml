@@ -27,7 +27,7 @@ pypi-aminapickle = "pypi_aminapickle.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-pypi_aminapickle = ["py.typed"]
+pypi_aminapickle = ["py.typed", "fulcio_roots.pem"]
 
 [tool.black]
 line-length = 80
