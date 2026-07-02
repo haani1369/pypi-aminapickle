@@ -1,0 +1,127 @@
+pypi client
+
+
+purpose
+
+    for one pinned (name, version), fetch the package's pypi json
+    metadata, expose the fields later stages need, select the
+    published sdist artifact, and download it into a caller-supplied
+    directory with its declared digest verified.
+
+    every value in a pypi response is untrusted. no field is
+    assumed present or well-typed; a missing or wrong-typed field is
+    a specific error, never a crash or a silent default.
+
+    module: src/srcverify/pypi.py
+
+
+the fetch boundary
+
+    all network reads go through one injected callable so the whole
+    module is testable offline:
+
+        Fetcher = Callable[[str], bytes]
+
+    a Fetcher takes an https url and returns the response body as
+    bytes, or raises FetchError on any transport failure. the
+    default Fetcher (default_fetcher) uses urllib with:
+
+        * https-only: a non-https url raises FetchError before any
+          request.
+        * a fixed connect/read timeout.
+        * a maximum response size; a body exceeding it raises
+          FetchError rather than being read unbounded.
+
+    tests pass a stub Fetcher backed by fixture bytes and never
+    touch the network.
+
+
+data types
+
+    ArtifactRef (frozen dataclass)
+        filename: str
+        url: str          the download url (https)
+        packagetype: str  e.g. "sdist", "bdist_wheel"
+        sha256: str       lowercase hex, from the response digests
+
+    Metadata (frozen dataclass)
+        name: str                  as returned by pypi
+        version: str               as returned by pypi
+        project_urls: dict[str, str]   label -> url, may be empty
+        artifacts: list[ArtifactRef]   all files for this version
+
+    Sdist (frozen dataclass)
+        ref: ArtifactRef
+        path: str          filesystem path of the downloaded file
+
+
+public functions
+
+    metadata_url(name: str, version: str) -> str
+        build "https://pypi.org/pypi/{name}/{version}/json" with the
+        name and version percent-encoded for path safety.
+
+    fetch_metadata(name, version, fetch: Fetcher) -> Metadata
+        fetch and parse the json, validating structure. raises
+        MetadataError if the body is not json, not an object, or is
+        missing the "info"/"urls" shapes it needs. project_urls is
+        read from info.project_urls when it is an object of
+        string->string, else treated as empty. each entry in "urls"
+        that is a well-formed file object (has string filename, url,
+        packagetype, and digests.sha256) becomes an ArtifactRef;
+        malformed entries are skipped, not fatal, since a valid
+        sdist may still be present.
+
+    select_sdist(metadata: Metadata) -> ArtifactRef
+        return the sole sdist artifact (packagetype == "sdist"). if
+        none, raise NoSdist. if more than one, prefer the single
+        entry whose filename ends with ".tar.gz"; if that is still
+        ambiguous or absent, raise NoSdist with a reason.
+
+    download_sdist(ref, dest_dir, fetch: Fetcher) -> Sdist
+        fetch the bytes at ref.url, compute their sha256, and
+        compare against ref.sha256. on mismatch raise
+        IntegrityError and write nothing. the destination filename
+        is the basename of ref.filename with any directory
+        component stripped, so a hostile filename cannot escape
+        dest_dir; a filename that is empty or "." after stripping is
+        an IntegrityError. return the Sdist on success.
+
+
+error model
+
+    added to src/srcverify/errors.py, all subclassing SrcverifyError:
+
+        PypiError          base for this module
+        FetchError         transport failure or policy violation
+                           (non-https, timeout, too large, http
+                           error status)
+        MetadataError      response present but not the json shape
+                           we require
+        NoSdist            no usable sdist artifact for the version
+        IntegrityError     downloaded bytes do not match the
+                           declared sha256, or an unusable filename
+
+    FetchError, MetadataError, NoSdist, and IntegrityError subclass
+    PypiError. none is swallowed.
+
+
+testing
+
+    offline, with a stub Fetcher and small fixtures:
+
+        * metadata_url percent-encodes name and version.
+        * fetch_metadata: a valid recorded response yields the
+          expected project_urls and artifacts; a non-json body, a
+          json array, and a missing "urls" each raise MetadataError;
+          a malformed file entry is skipped while a valid sibling is
+          kept.
+        * select_sdist: single sdist returned; no sdist raises
+          NoSdist; two sdists with one .tar.gz picks it; two
+          .tar.gz sdists raise NoSdist.
+        * download_sdist: bytes matching the digest are written and
+          the path exists; a digest mismatch raises IntegrityError
+          and writes nothing; a filename containing a path separator
+          is written to the basename inside dest_dir.
+        * default_fetcher: a non-https url raises FetchError. (live
+          fetching is exercised only in the integration suite.)
