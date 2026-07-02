@@ -28,6 +28,12 @@ the requirements file must pin every package to an exact version
 0 when every package matches, 1 when any does not, and 2 on a bad
 requirements file.
 
+to find the source point, srcverify prefers a pep 740 provenance
+attestation when the release has one: it binds the attestation to the
+downloaded sdist by digest and clones the exact commit it names. when
+there is no attestation it falls back to resolving the repo from the
+package's project urls and matching the version to an existing tag.
+
 each package is reported as one of:
 
     match        every shipped file is present in the repo, unchanged.
