@@ -1,0 +1,112 @@
+orchestration
+
+
+purpose
+
+    tie the components into the per-package flow and the command-line
+    entry point, and guarantee the throwaway workspace is cleaned up
+    on every exit path.
+
+    modules:
+        src/srcverify/workspace.py
+        src/srcverify/verify.py
+        src/srcverify/cli.py
+
+
+workspace
+
+    workspace() -> context manager yielding str
+        create a fresh temp directory and yield its path. on exit,
+        whether the body returns or raises, remove the whole tree.
+        this is the only place downloaded archives and cloned repos
+        are written.
+
+
+per-package verification
+
+    verify.py exposes one public function. its network and git
+    dependencies are injected with real defaults, so it is tested
+    offline with stubs.
+
+        verify_package(
+            req: PinnedRequirement,
+            *,
+            fetch: Fetcher = default_fetcher,
+            list_refs: Callable[[str], list[str]] = list_remote_refs,
+            clone: Callable[[str, str, str], str] = clone_repo,
+            make_workspace = workspace,
+        ) -> PackageResult
+
+    inside a workspace, it runs the pipeline:
+
+        fetch metadata -> select sdist -> download sdist ->
+        extract sdist -> hash sdist tree -> resolve+validate repo url
+        -> list refs -> select ref -> clone at ref -> hash repo tree
+        -> diff.
+
+    outcome mapping:
+
+        * diff empty            -> status "match",
+                                   reason "matches source".
+        * diff non-empty        -> status "mismatch",
+                                   reason "N differing file(s)",
+                                   findings attached.
+        * any SrcverifyError    -> status "unverified",
+                                   reason = str(error).
+
+    the resolved repo_url and ref are recorded on the result as soon
+    as they are known, so an "unverified" that fails after url/ref
+    resolution still reports them. only SrcverifyError is caught; an
+    unexpected error is not swallowed. the workspace is removed on
+    every path.
+
+
+command line
+
+    cli.py turns a requirements file into a report and an exit code.
+
+        run(argv, *, verify, stdout, stderr) -> int
+            parse argv (a requirements path, and --json), load the
+            requirements, verify each package with the injected
+            verify callable, print the report, and return the exit
+            code. injecting verify keeps run offline-testable.
+
+        main(argv=None) -> int
+            wire run with the real verify_package and the process
+            streams. this is the console-script entry point.
+
+    behavior:
+
+        * a requirements parse error (unpinned entry, unsupported
+          line, conflicting pins) or an unreadable file prints the
+          message to stderr and returns 2, with no report.
+        * otherwise the report is printed to stdout: json when --json
+          is given, human text otherwise.
+        * the return code is 0 when every package matched, 1
+          otherwise, so the tool works as a ci gate.
+
+
+testing
+
+    workspace:
+        * yields an existing directory that is gone after the block.
+        * the directory is removed even when the body raises.
+
+    verify_package (offline, stub fetch/list_refs/clone, real
+    workspace, a real tiny sdist tar.gz built in the test):
+        * matching sdist and repo trees -> "match".
+        * an altered file -> "mismatch" with the finding, repo_url
+          and ref recorded.
+        * fetch raising MetadataError -> "unverified".
+        * metadata with no repo url -> "unverified" (NoSourceRepo),
+          repo_url None.
+        * list_refs returning no candidate -> "unverified"
+          (UnresolvableRef).
+
+    run (offline, stub verify, real load_requirements over a temp
+    file):
+        * all-match results -> return 0 and text report printed.
+        * a mismatch result -> return 1.
+        * --json -> stdout parses as json.
+        * an unpinned requirement -> return 2 and a stderr message.
+        * a missing requirements file -> return 2.
