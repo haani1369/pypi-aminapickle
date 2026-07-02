@@ -60,3 +60,19 @@ class MalformedArchive(SdistError):
 
 class UnsafeArchiveEntry(SdistError):
     """a member escapes the target, is a link, or is a special file."""
+
+
+class RepoError(SrcverifyError):
+    """base for source repository failures."""
+
+
+class InvalidRepoUrl(RepoError):
+    """a repository url failed validation."""
+
+
+class CloneError(RepoError):
+    """git could not clone the repository."""
+
+
+class RefNotFound(RepoError):
+    """the claimed ref does not exist in the repository."""
