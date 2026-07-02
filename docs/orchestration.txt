@@ -40,9 +40,15 @@ per-package verification
     inside a workspace, it runs the pipeline:
 
         fetch metadata -> select sdist -> download sdist ->
-        extract sdist -> hash sdist tree -> resolve+validate repo url
-        -> list refs -> select ref -> clone at ref -> hash repo tree
-        -> diff.
+        extract sdist -> hash sdist tree -> resolve source -> clone at
+        ref -> hash repo tree -> diff.
+
+    source resolution prefers a pep 740 attestation: if one is bound
+    to the sdist, its authoritative repo url and commit are used
+    directly. otherwise it falls back to resolving the repo url from
+    project_urls and selecting a candidate tag that exists among the
+    repo's refs. the attestation resolver is injected alongside the
+    other boundaries so this stays offline-testable.
 
     outcome mapping:
 

@@ -5,6 +5,8 @@ import os
 import tarfile
 from collections.abc import Callable
 
+from srcverify.attestations import AttestedSource
+from srcverify.errors import FetchError
 from srcverify.pypi import Fetcher, metadata_url
 from srcverify.requirements import PinnedRequirement
 from srcverify.verify import verify_package
@@ -51,6 +53,8 @@ def make_fetch(project_urls: dict[str, str]) -> Fetcher:
     }
 
     def fetch(url: str) -> bytes:
+        if url not in responses:
+            raise FetchError(f"404 {url}")
         return responses[url]
 
     return fetch
@@ -73,6 +77,16 @@ def cloner(
 
 def raising_clone(url: str, ref: str, dest_dir: str) -> str:
     raise AssertionError("clone should not be reached")
+
+
+def raising_list_refs(url: str) -> list[str]:
+    raise AssertionError("list_refs should not be reached")
+
+
+def no_attestation(
+    name: str, version: str, filename: str, sha: str, fetch: Fetcher
+) -> AttestedSource | None:
+    return None
 
 
 def test_match() -> None:
@@ -133,7 +147,51 @@ def test_unverified_unresolvable_ref() -> None:
         fetch=make_fetch(GITHUB),
         list_refs=lambda url: ["main"],
         clone=raising_clone,
+        resolve_attested=no_attestation,
     )
     assert result.status == "unverified"
     assert result.repo_url == "https://github.com/o/r"
     assert result.ref is None
+
+
+def test_attestation_preferred_over_tags() -> None:
+    def attested_clone(url: str, ref: str, dest_dir: str) -> str:
+        assert url == "https://github.com/o/attested"
+        assert ref == "deadbeef"
+        checkout = os.path.join(dest_dir, "repo")
+        for rel, data in SDIST_SOURCE.items():
+            full = os.path.join(checkout, rel)
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, "wb") as handle:
+                handle.write(data)
+        return checkout
+
+    def resolve(
+        name: str, version: str, filename: str, sha: str, fetch: Fetcher
+    ) -> AttestedSource | None:
+        return AttestedSource(
+            repo_url="https://github.com/o/attested", commit="deadbeef"
+        )
+
+    result = verify_package(
+        REQ,
+        fetch=make_fetch(GITHUB),
+        list_refs=raising_list_refs,
+        clone=attested_clone,
+        resolve_attested=resolve,
+    )
+    assert result.status == "match"
+    assert result.repo_url == "https://github.com/o/attested"
+    assert result.ref == "deadbeef"
+
+
+def test_falls_back_to_tags_without_attestation() -> None:
+    result = verify_package(
+        REQ,
+        fetch=make_fetch(GITHUB),
+        list_refs=lambda url: ["v1.0"],
+        clone=cloner(SDIST_SOURCE),
+        resolve_attested=no_attestation,
+    )
+    assert result.status == "match"
+    assert result.ref == "v1.0"

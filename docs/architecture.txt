@@ -72,13 +72,20 @@ components
         refuses paths that escape the target directory, symlinks,
         and non-regular entries.
 
+    attestations.py
+        when a release carries a pep 740 provenance attestation,
+        resolve the authoritative source repo url and commit from
+        it, after binding it to the downloaded sdist by digest.
+        specified in docs/attestations.txt. this is preferred over
+        the tag heuristics below.
+
     source.py
-        from the pypi metadata, resolve the source repository url
-        and the git ref the release claims to correspond to. the
-        resolution strategy and its ambiguities are specified in
-        docs/source-resolution.txt. a package with no resolvable
-        repo link, or no resolvable ref, yields a specific error
-        rather than a guess.
+        the fallback resolution: from the pypi metadata, resolve the
+        source repository url and derive the git tag the release
+        claims to correspond to. the strategy and its ambiguities
+        are specified in docs/source-resolution.txt. a package with
+        no resolvable repo link, or no resolvable ref, yields a
+        specific error rather than a guess.
 
     repo.py
         clone the resolved repository at the resolved ref into the

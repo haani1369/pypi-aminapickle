@@ -11,13 +11,14 @@ purpose
 
     module: src/srcverify/source.py
 
-    scope for v1: the claim is the version-to-tag convention. we
-    resolve the repo url from the metadata's project_urls and derive
-    candidate tag names from the version, then pick the candidate
-    that actually exists among the repo's refs. pep 740 provenance
-    attestations (an authoritative repo + commit sha) are a
-    deliberate non-goal for v1 and would slot in ahead of the tag
-    heuristics later.
+    this module is the tag-heuristics path: resolve the repo url from
+    the metadata's project_urls and derive candidate tag names from
+    the version, then pick the candidate that actually exists among
+    the repo's refs. it is the fallback. when a release carries a pep
+    740 provenance attestation, the orchestrator prefers the
+    authoritative repo + commit from it (see docs/attestations.txt)
+    and only falls back to this module when no usable attestation
+    exists.
 
     the functions here are pure over their inputs. the list of a
     repo's existing refs is obtained separately (repo.list_remote_refs)
