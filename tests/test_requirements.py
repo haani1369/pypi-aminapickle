@@ -1,15 +1,16 @@
 from pathlib import Path
 
 import pytest
-from srcverify.errors import (
+
+from pypi_aminapickle.errors import (
     ConflictingPins,
     MalformedRequirement,
+    PypiAminapickleError,
     RequirementsError,
-    SrcverifyError,
     UnpinnedRequirement,
     UnsupportedRequirementLine,
 )
-from srcverify.requirements import (
+from pypi_aminapickle.requirements import (
     PinnedRequirement,
     load_requirements,
     parse_requirements,
@@ -145,7 +146,7 @@ def test_conflicting_pins() -> None:
 
 
 def test_errors_subclass_hierarchy() -> None:
-    assert issubclass(RequirementsError, SrcverifyError)
+    assert issubclass(RequirementsError, PypiAminapickleError)
     for error in (
         UnpinnedRequirement,
         MalformedRequirement,

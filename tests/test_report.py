@@ -1,7 +1,7 @@
 import json
 
-from srcverify.diff import Finding
-from srcverify.report import (
+from pypi_aminapickle.diff import Finding
+from pypi_aminapickle.report import (
     PackageResult,
     all_match,
     render_json,

@@ -5,11 +5,11 @@ import os
 import tarfile
 from collections.abc import Callable
 
-from srcverify.attestations import AttestedSource
-from srcverify.errors import FetchError
-from srcverify.pypi import Fetcher, metadata_url
-from srcverify.requirements import PinnedRequirement
-from srcverify.verify import verify_package
+from pypi_aminapickle.attestations import AttestedSource
+from pypi_aminapickle.errors import FetchError
+from pypi_aminapickle.pypi import Fetcher, metadata_url
+from pypi_aminapickle.requirements import PinnedRequirement
+from pypi_aminapickle.verify import verify_package
 
 REQ = PinnedRequirement(name="pkg", version="1.0")
 SDIST_URL = "https://files.example/pkg-1.0.tar.gz"

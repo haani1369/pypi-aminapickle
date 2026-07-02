@@ -7,9 +7,9 @@ from urllib.parse import quote
 
 from cryptography import x509
 
-from srcverify.errors import AttestationError, FetchError, InvalidRepoUrl
-from srcverify.pypi import Fetcher
-from srcverify.repo import validate_repo_url
+from pypi_aminapickle.errors import AttestationError, FetchError, InvalidRepoUrl
+from pypi_aminapickle.pypi import Fetcher
+from pypi_aminapickle.repo import validate_repo_url
 
 _SOURCE_URI_OID = "1.3.6.1.4.1.57264.1.12"
 _SOURCE_DIGEST_OID = "1.3.6.1.4.1.57264.1.13"

@@ -3,27 +3,30 @@
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 
-from srcverify.attestations import AttestedSource, resolve_attested_source
-from srcverify.diff import Finding, diff_trees
-from srcverify.errors import SrcverifyError
-from srcverify.pypi import (
+from pypi_aminapickle.attestations import (
+    AttestedSource,
+    resolve_attested_source,
+)
+from pypi_aminapickle.diff import Finding, diff_trees
+from pypi_aminapickle.errors import PypiAminapickleError
+from pypi_aminapickle.pypi import (
     Fetcher,
     default_fetcher,
     download_sdist,
     fetch_metadata,
     select_sdist,
 )
-from srcverify.repo import (
+from pypi_aminapickle.repo import (
     clone_repo,
     list_remote_refs,
     repo_files,
     validate_repo_url,
 )
-from srcverify.report import PackageResult
-from srcverify.requirements import PinnedRequirement
-from srcverify.sdist import extract_sdist, sdist_files
-from srcverify.source import candidate_refs, resolve_repo_url, select_ref
-from srcverify.workspace import workspace
+from pypi_aminapickle.report import PackageResult
+from pypi_aminapickle.requirements import PinnedRequirement
+from pypi_aminapickle.sdist import extract_sdist, sdist_files
+from pypi_aminapickle.source import candidate_refs, resolve_repo_url, select_ref
+from pypi_aminapickle.workspace import workspace
 
 _RefLister = Callable[[str], list[str]]
 _Cloner = Callable[[str, str, str], str]
@@ -66,7 +69,7 @@ def verify_package(
                     list_refs(repo_url),
                 )
             repo_tree = repo_files(clone(repo_url, ref, work))
-        except SrcverifyError as exc:
+        except PypiAminapickleError as exc:
             return _result(req, "unverified", str(exc), repo_url, ref, [])
     findings = diff_trees(sdist_tree, repo_tree)
     if findings:

@@ -4,14 +4,14 @@ import tarfile
 from pathlib import Path
 
 import pytest
-from srcverify.sdist import extract_sdist, sdist_files
 
-from srcverify.errors import (
+from pypi_aminapickle.errors import (
     MalformedArchive,
+    PypiAminapickleError,
     SdistError,
-    SrcverifyError,
     UnsafeArchiveEntry,
 )
+from pypi_aminapickle.sdist import extract_sdist, sdist_files
 
 
 def sha256_hex(data: bytes) -> str:
@@ -160,7 +160,7 @@ def test_empty_archive(tmp_path: Path) -> None:
 
 
 def test_error_hierarchy() -> None:
-    assert issubclass(SdistError, SrcverifyError)
+    assert issubclass(SdistError, PypiAminapickleError)
     for error in (MalformedArchive, UnsafeArchiveEntry):
         assert issubclass(error, SdistError)
 

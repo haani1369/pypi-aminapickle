@@ -2,8 +2,8 @@
 
 from urllib.parse import urlparse
 
-from srcverify.errors import NoSourceRepo, UnresolvableRef
-from srcverify.pypi import Metadata
+from pypi_aminapickle.errors import NoSourceRepo, UnresolvableRef
+from pypi_aminapickle.pypi import Metadata
 
 _HOSTS = frozenset(
     {"github.com", "gitlab.com", "bitbucket.org", "codeberg.org"}

@@ -8,7 +8,7 @@ from contextlib import contextmanager
 
 @contextmanager
 def workspace() -> Iterator[str]:
-    path = tempfile.mkdtemp(prefix="srcverify-")
+    path = tempfile.mkdtemp(prefix="pypi-aminapickle-")
     try:
         yield path
     finally:

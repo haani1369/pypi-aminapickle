@@ -3,7 +3,16 @@ import json
 from pathlib import Path
 
 import pytest
-from srcverify.pypi import (
+
+from pypi_aminapickle.errors import (
+    FetchError,
+    IntegrityError,
+    MetadataError,
+    NoSdist,
+    PypiAminapickleError,
+    PypiError,
+)
+from pypi_aminapickle.pypi import (
     ArtifactRef,
     Fetcher,
     Metadata,
@@ -13,15 +22,6 @@ from srcverify.pypi import (
     fetch_metadata,
     metadata_url,
     select_sdist,
-)
-
-from srcverify.errors import (
-    FetchError,
-    IntegrityError,
-    MetadataError,
-    NoSdist,
-    PypiError,
-    SrcverifyError,
 )
 
 
@@ -255,7 +255,7 @@ def test_download_sdist_strips_path_separator(tmp_path: Path) -> None:
 
 
 def test_error_hierarchy() -> None:
-    assert issubclass(PypiError, SrcverifyError)
+    assert issubclass(PypiError, PypiAminapickleError)
     for error in (FetchError, MetadataError, NoSdist, IntegrityError):
         assert issubclass(error, PypiError)
 

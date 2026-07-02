@@ -12,7 +12,7 @@ purpose
     assumed present or well-typed; a missing or wrong-typed field is
     a specific error, never a crash or a silent default.
 
-    module: src/srcverify/pypi.py
+    module: src/pypi_aminapickle/pypi.py
 
 
 the fetch boundary
@@ -90,7 +90,7 @@ public functions
 
 error model
 
-    added to src/srcverify/errors.py, all subclassing SrcverifyError:
+    added to src/pypi_aminapickle/errors.py, all subclassing PypiAminapickleError:
 
         PypiError          base for this module
         FetchError         transport failure or policy violation

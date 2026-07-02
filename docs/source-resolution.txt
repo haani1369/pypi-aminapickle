@@ -9,7 +9,7 @@ purpose
     so when it cannot be established the package is reported
     unverified rather than guessed at.
 
-    module: src/srcverify/source.py
+    module: src/pypi_aminapickle/source.py
 
     this module is the tag-heuristics path: resolve the repo url from
     the metadata's project_urls and derive candidate tag names from
@@ -69,7 +69,7 @@ public functions
 
 error model
 
-    added to src/srcverify/errors.py, subclassing SrcverifyError:
+    added to src/pypi_aminapickle/errors.py, subclassing PypiAminapickleError:
 
         SourceError      base for this module
         NoSourceRepo     no recognized repository url in the metadata

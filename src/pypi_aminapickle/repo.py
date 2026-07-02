@@ -6,7 +6,7 @@ import subprocess
 from pathlib import PurePath
 from urllib.parse import urlparse
 
-from srcverify.errors import CloneError, InvalidRepoUrl, RefNotFound
+from pypi_aminapickle.errors import CloneError, InvalidRepoUrl, RefNotFound
 
 _TIMEOUT = 300.0
 

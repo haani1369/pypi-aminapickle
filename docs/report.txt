@@ -8,7 +8,7 @@ purpose
     readable json. the report answers, per package, the tool's one
     question, and carries the detail behind each answer.
 
-    module: src/srcverify/report.py
+    module: src/pypi_aminapickle/report.py
 
 
 the result shape

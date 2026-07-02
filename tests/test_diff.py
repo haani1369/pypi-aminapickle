@@ -1,4 +1,4 @@
-from srcverify.diff import Finding, diff_trees
+from pypi_aminapickle.diff import Finding, diff_trees
 
 
 def test_identical_trees_no_findings() -> None:

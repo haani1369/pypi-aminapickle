@@ -5,7 +5,7 @@ import os
 import tarfile
 from pathlib import PurePath, PurePosixPath
 
-from srcverify.errors import MalformedArchive, UnsafeArchiveEntry
+from pypi_aminapickle.errors import MalformedArchive, UnsafeArchiveEntry
 
 
 def extract_sdist(sdist_path: str, dest_dir: str) -> str:

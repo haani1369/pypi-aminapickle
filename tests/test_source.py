@@ -1,13 +1,13 @@
 import pytest
 
-from srcverify.errors import (
+from pypi_aminapickle.errors import (
     NoSourceRepo,
+    PypiAminapickleError,
     SourceError,
-    SrcverifyError,
     UnresolvableRef,
 )
-from srcverify.pypi import Metadata
-from srcverify.source import candidate_refs, resolve_repo_url, select_ref
+from pypi_aminapickle.pypi import Metadata
+from pypi_aminapickle.source import candidate_refs, resolve_repo_url, select_ref
 
 
 def metadata(project_urls: dict[str, str]) -> Metadata:
@@ -111,6 +111,6 @@ def test_select_ref_none_present() -> None:
 
 
 def test_error_hierarchy() -> None:
-    assert issubclass(SourceError, SrcverifyError)
+    assert issubclass(SourceError, PypiAminapickleError)
     for error in (NoSourceRepo, UnresolvableRef):
         assert issubclass(error, SourceError)

@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from srcverify.workspace import workspace
+from pypi_aminapickle.workspace import workspace
 
 
 def test_yields_existing_directory_removed_after() -> None:

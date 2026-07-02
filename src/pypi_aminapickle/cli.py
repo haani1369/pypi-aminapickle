@@ -5,10 +5,15 @@ import sys
 from collections.abc import Callable
 from typing import TextIO
 
-from srcverify.errors import RequirementsError
-from srcverify.report import PackageResult, all_match, render_json, render_text
-from srcverify.requirements import PinnedRequirement, load_requirements
-from srcverify.verify import verify_package
+from pypi_aminapickle.errors import RequirementsError
+from pypi_aminapickle.report import (
+    PackageResult,
+    all_match,
+    render_json,
+    render_text,
+)
+from pypi_aminapickle.requirements import PinnedRequirement, load_requirements
+from pypi_aminapickle.verify import verify_package
 
 _Verifier = Callable[[PinnedRequirement], PackageResult]
 
@@ -46,7 +51,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def _parse(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="srcverify",
+        prog="pypi-aminapickle",
         description="verify that pypi sdists match their claimed source",
     )
     parser.add_argument(

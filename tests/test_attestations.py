@@ -4,13 +4,17 @@ from pathlib import Path
 
 import pytest
 
-from srcverify.attestations import (
+from pypi_aminapickle.attestations import (
     AttestedSource,
     provenance_url,
     resolve_attested_source,
 )
-from srcverify.errors import AttestationError, FetchError, SrcverifyError
-from srcverify.pypi import Fetcher
+from pypi_aminapickle.errors import (
+    AttestationError,
+    FetchError,
+    PypiAminapickleError,
+)
+from pypi_aminapickle.pypi import Fetcher
 
 FIXTURE = (
     Path(__file__).parent / "fixtures" / "provenance_cryptography_44.0.0.json"
@@ -113,4 +117,4 @@ def test_bad_certificate_raises() -> None:
 
 
 def test_error_hierarchy() -> None:
-    assert issubclass(AttestationError, SrcverifyError)
+    assert issubclass(AttestationError, PypiAminapickleError)

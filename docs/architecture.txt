@@ -1,9 +1,9 @@
-srcverify architecture
+pypi-aminapickle architecture
 
 
 purpose
 
-    srcverify answers one question per pinned package in a
+    pypi-aminapickle answers one question per pinned package in a
     requirements file: does the sdist published on pypi match the
     source in the linked git repository at the release point it
     claims to correspond to, yes or no.
@@ -36,7 +36,7 @@ the pipeline
 
 components
 
-    each component is one module under src/srcverify. modules
+    each component is one module under src/pypi_aminapickle. modules
     depend downward only; nothing below the orchestrator imports
     the orchestrator.
 

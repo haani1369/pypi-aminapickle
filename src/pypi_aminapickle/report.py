@@ -3,7 +3,7 @@
 import json
 from dataclasses import dataclass
 
-from srcverify.diff import Finding
+from pypi_aminapickle.diff import Finding
 
 _TAGS = {
     "match": "MATCH",

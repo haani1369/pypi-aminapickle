@@ -1,7 +1,7 @@
-srcverify
+pypi-aminapickle
 
 
-srcverify checks whether the sdist published on pypi for a pinned
+pypi-aminapickle checks whether the sdist published on pypi for a pinned
 package matches the source in its linked git repository at the release
 it claims to correspond to. it answers one question per package: does
 the artifact you are about to install match its public source, yes or
@@ -20,15 +20,15 @@ install
 
 use
 
-    srcverify requirements.txt          human-readable report
-    srcverify --json requirements.txt   machine-readable report
+    pypi-aminapickle requirements.txt          human-readable report
+    pypi-aminapickle --json requirements.txt   machine-readable report
 
 the requirements file must pin every package to an exact version
 (name==version); an unpinned entry is a hard error. the process exits
 0 when every package matches, 1 when any does not, and 2 on a bad
 requirements file.
 
-to find the source point, srcverify prefers a pep 740 provenance
+to find the source point, pypi-aminapickle prefers a pep 740 provenance
 attestation when the release has one: it binds the attestation to the
 downloaded sdist by digest and clones the exact commit it names. when
 there is no attestation it falls back to resolving the repo from the

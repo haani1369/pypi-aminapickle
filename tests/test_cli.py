@@ -3,9 +3,9 @@ import json
 from collections.abc import Callable
 from pathlib import Path
 
-from srcverify.cli import run
-from srcverify.report import PackageResult
-from srcverify.requirements import PinnedRequirement
+from pypi_aminapickle.cli import run
+from pypi_aminapickle.report import PackageResult
+from pypi_aminapickle.requirements import PinnedRequirement
 
 
 def make_verifier(

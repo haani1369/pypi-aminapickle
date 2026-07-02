@@ -10,7 +10,7 @@ purpose
     injection surface. the tool reports these; it does not judge
     intent.
 
-    module: src/srcverify/diff.py
+    module: src/pypi_aminapickle/diff.py
 
     both inputs are mappings from posix relative path to lowercase
     hex sha256, produced by sdist_files and repo_files, which share

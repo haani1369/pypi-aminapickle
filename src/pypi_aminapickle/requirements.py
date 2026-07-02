@@ -7,7 +7,7 @@ from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
 
-from srcverify.errors import (
+from pypi_aminapickle.errors import (
     ConflictingPins,
     MalformedRequirement,
     UnpinnedRequirement,

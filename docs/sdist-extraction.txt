@@ -9,7 +9,7 @@ purpose
     extraction must never write outside the target directory, follow
     or create a symlink, or materialize a special file.
 
-    module: src/srcverify/sdist.py
+    module: src/pypi_aminapickle/sdist.py
 
 
 the sdist shape assumed
@@ -60,7 +60,7 @@ public functions
 
 error model
 
-    added to src/srcverify/errors.py, subclassing SrcverifyError:
+    added to src/pypi_aminapickle/errors.py, subclassing PypiAminapickleError:
 
         SdistError          base for this module
         MalformedArchive    not a readable gzip tar, or no single

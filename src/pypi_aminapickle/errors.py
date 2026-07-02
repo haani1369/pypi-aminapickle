@@ -1,11 +1,11 @@
-"""exception hierarchy for srcverify."""
+"""exception hierarchy for pypi_aminapickle."""
 
 
-class SrcverifyError(Exception):
-    """base for every error raised by srcverify."""
+class PypiAminapickleError(Exception):
+    """base for every error raised by pypi_aminapickle."""
 
 
-class RequirementsError(SrcverifyError):
+class RequirementsError(PypiAminapickleError):
     """a requirements file could not be reduced to exact pins."""
 
     def __init__(self, line: str, reason: str) -> None:
@@ -30,7 +30,7 @@ class ConflictingPins(RequirementsError):
     """one name is pinned to two different versions."""
 
 
-class PypiError(SrcverifyError):
+class PypiError(PypiAminapickleError):
     """base for pypi metadata and download failures."""
 
 
@@ -50,7 +50,7 @@ class IntegrityError(PypiError):
     """downloaded bytes do not match the declared digest."""
 
 
-class SdistError(SrcverifyError):
+class SdistError(PypiAminapickleError):
     """base for sdist extraction failures."""
 
 
@@ -62,7 +62,7 @@ class UnsafeArchiveEntry(SdistError):
     """a member escapes the target, is a link, or is a special file."""
 
 
-class RepoError(SrcverifyError):
+class RepoError(PypiAminapickleError):
     """base for source repository failures."""
 
 
@@ -78,7 +78,7 @@ class RefNotFound(RepoError):
     """the claimed ref does not exist in the repository."""
 
 
-class SourceError(SrcverifyError):
+class SourceError(PypiAminapickleError):
     """base for source resolution failures."""
 
 
@@ -90,5 +90,5 @@ class UnresolvableRef(SourceError):
     """none of the candidate tags exist in the repository."""
 
 
-class AttestationError(SrcverifyError):
+class AttestationError(PypiAminapickleError):
     """a provenance bound to our artifact could not be trusted."""

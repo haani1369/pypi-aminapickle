@@ -5,14 +5,14 @@ from pathlib import Path
 
 import pytest
 
-from srcverify.errors import (
+from pypi_aminapickle.errors import (
     CloneError,
     InvalidRepoUrl,
+    PypiAminapickleError,
     RefNotFound,
     RepoError,
-    SrcverifyError,
 )
-from srcverify.repo import (
+from pypi_aminapickle.repo import (
     clone_repo,
     list_remote_refs,
     repo_files,
@@ -178,6 +178,6 @@ def test_list_remote_refs_not_a_repo(tmp_path: Path) -> None:
 
 
 def test_error_hierarchy() -> None:
-    assert issubclass(RepoError, SrcverifyError)
+    assert issubclass(RepoError, PypiAminapickleError)
     for error in (InvalidRepoUrl, CloneError, RefNotFound):
         assert issubclass(error, RepoError)

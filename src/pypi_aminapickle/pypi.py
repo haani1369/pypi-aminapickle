@@ -9,7 +9,7 @@ from urllib.error import URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-from srcverify.errors import (
+from pypi_aminapickle.errors import (
     FetchError,
     IntegrityError,
     MetadataError,

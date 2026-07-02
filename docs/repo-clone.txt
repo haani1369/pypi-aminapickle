@@ -10,7 +10,7 @@ purpose
     sees it, and git is run with a hardened, non-interactive
     configuration and never through a shell.
 
-    module: src/srcverify/repo.py
+    module: src/pypi_aminapickle/repo.py
 
 
 url validation
@@ -83,7 +83,7 @@ cloning
 
 error model
 
-    added to src/srcverify/errors.py, subclassing SrcverifyError:
+    added to src/pypi_aminapickle/errors.py, subclassing PypiAminapickleError:
 
         RepoError        base for this module
         InvalidRepoUrl   url failed validation
@@ -111,4 +111,4 @@ testing
         * a committed symlink does not appear in repo_files.
         * a nonexistent ref raises RefNotFound.
         * cloning a path that is not a repository raises CloneError.
-        * error types subclass RepoError subclass SrcverifyError.
+        * error types subclass RepoError subclass PypiAminapickleError.

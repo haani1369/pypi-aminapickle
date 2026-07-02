@@ -8,9 +8,9 @@ purpose
     on every exit path.
 
     modules:
-        src/srcverify/workspace.py
-        src/srcverify/verify.py
-        src/srcverify/cli.py
+        src/pypi_aminapickle/workspace.py
+        src/pypi_aminapickle/verify.py
+        src/pypi_aminapickle/cli.py
 
 
 workspace
@@ -57,12 +57,12 @@ per-package verification
         * diff non-empty        -> status "mismatch",
                                    reason "N differing file(s)",
                                    findings attached.
-        * any SrcverifyError    -> status "unverified",
+        * any PypiAminapickleError    -> status "unverified",
                                    reason = str(error).
 
     the resolved repo_url and ref are recorded on the result as soon
     as they are known, so an "unverified" that fails after url/ref
-    resolution still reports them. only SrcverifyError is caught; an
+    resolution still reports them. only PypiAminapickleError is caught; an
     unexpected error is not swallowed. the workspace is removed on
     every path.
 

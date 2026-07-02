@@ -3,11 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from srcverify.attestations import resolve_attested_source
-from srcverify.cli import run
-from srcverify.pypi import default_fetcher
-from srcverify.requirements import PinnedRequirement
-from srcverify.verify import verify_package
+from pypi_aminapickle.attestations import resolve_attested_source
+from pypi_aminapickle.cli import run
+from pypi_aminapickle.pypi import default_fetcher
+from pypi_aminapickle.requirements import PinnedRequirement
+from pypi_aminapickle.verify import verify_package
 
 pytestmark = pytest.mark.integration
 

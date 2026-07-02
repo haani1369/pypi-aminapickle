@@ -9,7 +9,7 @@ purpose
     reduce to an exact (name, version) pin is a hard error that
     aborts the run before any network work happens.
 
-    module: src/srcverify/requirements.py
+    module: src/pypi_aminapickle/requirements.py
 
 
 data types
@@ -72,7 +72,7 @@ what counts as pinned
 error model
 
     all errors below subclass RequirementsError, which subclasses
-    the project base error SrcverifyError (src/srcverify/errors.py).
+    the project base error PypiAminapickleError (src/pypi_aminapickle/errors.py).
     each error records the offending source line and a reason. no
     error is swallowed; the parser raises on the first bad line.
 
@@ -98,8 +98,8 @@ error model
             than once is not an error; duplicates collapse to one
             entry.
 
-    SrcverifyError is the single base exception for the whole tool
-    and is introduced by this component in src/srcverify/errors.py.
+    PypiAminapickleError is the single base exception for the whole tool
+    and is introduced by this component in src/pypi_aminapickle/errors.py.
     later components add their own subclasses there.
 
 

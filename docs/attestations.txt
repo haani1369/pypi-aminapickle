@@ -6,22 +6,22 @@ purpose
     when a release carries a pep 740 provenance attestation, it names
     the exact source repository and commit the artifact was built
     from. that is a stronger, more precise claim than guessing a tag
-    from the version, so srcverify prefers it: it resolves the repo
+    from the version, so pypi-aminapickle prefers it: it resolves the repo
     url and the commit to clone directly from the attestation, and
     falls back to tag heuristics only when no usable attestation
     exists.
 
-    module: src/srcverify/attestations.py
+    module: src/pypi_aminapickle/attestations.py
 
 
 what is trusted, what is not
 
-    srcverify does one independent check on the attestation: the
+    pypi-aminapickle does one independent check on the attestation: the
     statement's subject sha256 must equal the sha256 of the sdist we
     actually downloaded, so the provenance is bound to our bytes and
     not some other artifact.
 
-    srcverify does not re-run the full sigstore/fulcio/rekor
+    pypi-aminapickle does not re-run the full sigstore/fulcio/rekor
     signature verification. it relies on pypi having verified the
     attestation server-side under trusted publishing, and reads the
     claimed source repo and commit from the certificate. this is a
@@ -88,9 +88,9 @@ public interface
 
 error model
 
-    added to src/srcverify/errors.py:
+    added to src/pypi_aminapickle/errors.py:
 
-        AttestationError(SrcverifyError)
+        AttestationError(PypiAminapickleError)
             a provenance bound to our artifact could not be trusted
             or read.
 
