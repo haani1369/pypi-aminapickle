@@ -53,6 +53,8 @@ def _extract_tar(sdist_path: str, dest_dir: str) -> str:
             members = archive.getmembers()
             top = _single_top([(m.name, _tar_kind(m)) for m in members])
             for member in members:
+                if _tar_kind(member) not in ("file", "dir"):
+                    continue
                 _place(
                     dest_dir,
                     member.name,
@@ -70,6 +72,8 @@ def _extract_zip(sdist_path: str, dest_dir: str) -> str:
             infos = archive.infolist()
             top = _single_top([(i.filename, _zip_kind(i)) for i in infos])
             for info in infos:
+                if _zip_kind(info) not in ("file", "dir"):
+                    continue
                 _place(
                     dest_dir,
                     info.filename,
@@ -83,23 +87,23 @@ def _extract_zip(sdist_path: str, dest_dir: str) -> str:
 
 def _tar_kind(member: tarfile.TarInfo) -> str:
     if member.issym() or member.islnk():
-        return "unsafe"
+        return "link"
     if member.isdir():
         return "dir"
     if member.isfile():
         return "file"
-    return "unsafe"
+    return "special"
 
 
 def _zip_kind(info: zipfile.ZipInfo) -> str:
     file_type = stat.S_IFMT(info.external_attr >> 16)
     if file_type == stat.S_IFLNK:
-        return "unsafe"
+        return "link"
     if info.is_dir() or file_type == stat.S_IFDIR:
         return "dir"
     if file_type in (stat.S_IFREG, 0):
         return "file"
-    return "unsafe"
+    return "special"
 
 
 def _tar_bytes(archive: tarfile.TarFile, member: tarfile.TarInfo) -> bytes:
@@ -110,7 +114,11 @@ def _tar_bytes(archive: tarfile.TarFile, member: tarfile.TarInfo) -> bytes:
 def _single_top(entries: list[tuple[str, str]]) -> str:
     tops = set()
     for name, kind in entries:
-        _check_entry(name, kind)
+        if kind == "special":
+            raise UnsafeArchiveEntry(f"special member: {name!r}")
+        if kind == "link":
+            continue
+        _check_path(name)
         tops.add(PurePosixPath(name).parts[0])
     if len(tops) != 1:
         raise MalformedArchive(
@@ -119,9 +127,7 @@ def _single_top(entries: list[tuple[str, str]]) -> str:
     return next(iter(tops))
 
 
-def _check_entry(name: str, kind: str) -> None:
-    if kind == "unsafe":
-        raise UnsafeArchiveEntry(f"link or special member: {name!r}")
+def _check_path(name: str) -> None:
     if name.startswith("/") or os.path.isabs(name):
         raise UnsafeArchiveEntry(f"absolute member: {name!r}")
     parts = PurePosixPath(name).parts

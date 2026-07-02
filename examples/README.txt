@@ -23,8 +23,7 @@ representative output
     [MISMATCH] pyyaml==6.0.2 -> https://github.com/yaml/pyyaml@6.0.2 (1 differing file)
         extra: packaging/__pycache__/_pyyaml_pep517.cpython-312.pyc
     [UNVERIFIED] pytz==2024.1 (no recognized repository url in metadata)
-    [UNVERIFIED] docutils==0.21.2 (link or special member: '.../html4css1.css')
-    6 packages: 2 match, 2 mismatch, 2 unverified
+    5 packages: 2 match, 2 mismatch, 1 unverified
 
     the process exits non-zero because not every package matched.
 
@@ -65,19 +64,13 @@ what each case shows
         host, so the source link cannot be established. rather than
         pass or guess, the tool reports unverified with the reason.
 
-    docutils==0.21.2
-        the sdist contains a symlink. extraction is hardened against
-        untrusted archives and refuses to follow or materialize
-        links, so the package is reported unverified with that
-        reason rather than risking an unsafe extraction.
-
 
 the three verdicts
 
     match       every shipped file is present in the repo, unchanged.
     mismatch    the sdist adds or alters files relative to the repo.
-    unverified  the link could not be safely established (no repo,
-                an unresolvable ref, an unsafe archive, and so on).
+    unverified  the link could not be established (no repo, an
+                unresolvable ref, a failed download, and so on).
 
 only match answers the tool's question with "yes". see the top-level
 README.txt for install and usage, and docs/ for the design.

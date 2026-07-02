@@ -22,7 +22,3 @@ PyYAML==6.0.2
 # unverified: the project's metadata has no repository on a
 # recognized host, so the source link cannot be established.
 pytz==2024.1
-
-# unverified: the sdist contains a symlink, which the hardened
-# extraction refuses rather than following.
-docutils==0.21.2

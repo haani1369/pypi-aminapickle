@@ -39,18 +39,24 @@ public functions
         owned by the caller). returns the filesystem path of the
         single stripped top-level directory.
 
-        validation, applied to every member:
-            * the member name, normalized, must stay within
-              dest_dir: no absolute paths, no ".." components, no
-              leading "/". a member that would resolve outside is
-              UnsafeArchiveEntry.
-            * symlinks (and, for tar, hardlinks) are
-              UnsafeArchiveEntry.
-            * anything that is not a regular file or directory
-              (devices, fifos, sockets) is UnsafeArchiveEntry.
-            * all members must share one top-level path component;
-              zero members, or more than one distinct top-level
-              component, is MalformedArchive.
+        handling, applied to every member:
+            * symlinks (and, for tar, hardlinks) are skipped: not
+              extracted and not part of the tree. legitimate sdists
+              sometimes ship them, and skipping is safe (nothing is
+              followed or written) and consistent with repo_files,
+              which also skips symlinks. a path a symlink pointed at
+              is simply not compared.
+            * anything that is not a regular file, directory, or link
+              (devices, fifos, sockets) is UnsafeArchiveEntry: never
+              legitimate in an sdist.
+            * for the regular files and directories that are
+              extracted, the member name, normalized, must stay
+              within dest_dir: no absolute paths, no ".."
+              components, no leading "/". a member that would resolve
+              outside is UnsafeArchiveEntry.
+            * the extracted files and directories must share one
+              top-level path component; none, or more than one
+              distinct top-level component, is MalformedArchive.
 
         an input that is neither a readable gzip tar nor a readable
         zip is MalformedArchive.
@@ -86,8 +92,9 @@ testing
           the expected relative paths and matching sha256 digests.
         * a member with an absolute path raises UnsafeArchiveEntry.
         * a member with a ".." component raises UnsafeArchiveEntry.
-        * a symlink member raises UnsafeArchiveEntry.
-        * a hardlink member raises UnsafeArchiveEntry.
+        * a symlink member is skipped: the archive extracts and the
+          symlink path is absent from the tree.
+        * a hardlink member is skipped likewise.
         * a fifo/device member raises UnsafeArchiveEntry.
         * a file that is neither a gzip tar nor a zip raises
           MalformedArchive.
@@ -99,6 +106,7 @@ testing
 
     the same cases are covered for zip archives built with the
     zipfile module: a normal single-top zip extracts and hashes
-    correctly, and zip members with an absolute path, a ".."
-    component, a symlink (unix mode), or spanning two top-level
-    directories, and an empty zip, are rejected as above.
+    correctly; zip members with an absolute path, a ".." component,
+    or spanning two top-level directories, and an empty zip, are
+    rejected as above; and a zip symlink member (unix mode) is
+    skipped.

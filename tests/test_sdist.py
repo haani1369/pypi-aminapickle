@@ -117,26 +117,27 @@ def test_dotdot_component_member(tmp_path: Path) -> None:
         extract_sdist(str(tmp_path / "a.tar.gz"), dest)
 
 
-def test_symlink_member(tmp_path: Path) -> None:
+def test_symlink_member_skipped(tmp_path: Path) -> None:
     with tarfile.open(str(tmp_path / "a.tar.gz"), "w:gz") as tar:
         add_file(tar, "pkg-1.0/PKG-INFO", b"ok")
         add_special(
             tar, "pkg-1.0/link", tarfile.SYMTYPE, linkname="/etc/passwd"
         )
     dest = fresh_dir(tmp_path, "dest")
-    with pytest.raises(UnsafeArchiveEntry):
-        extract_sdist(str(tmp_path / "a.tar.gz"), dest)
+    root = extract_sdist(str(tmp_path / "a.tar.gz"), dest)
+    assert "link" not in sdist_files(root)
+    assert sdist_files(root) == {"PKG-INFO": sha256_hex(b"ok")}
 
 
-def test_hardlink_member(tmp_path: Path) -> None:
+def test_hardlink_member_skipped(tmp_path: Path) -> None:
     with tarfile.open(str(tmp_path / "a.tar.gz"), "w:gz") as tar:
         add_file(tar, "pkg-1.0/PKG-INFO", b"ok")
         add_special(
             tar, "pkg-1.0/hard", tarfile.LNKTYPE, linkname="pkg-1.0/PKG-INFO"
         )
     dest = fresh_dir(tmp_path, "dest")
-    with pytest.raises(UnsafeArchiveEntry):
-        extract_sdist(str(tmp_path / "a.tar.gz"), dest)
+    root = extract_sdist(str(tmp_path / "a.tar.gz"), dest)
+    assert sdist_files(root) == {"PKG-INFO": sha256_hex(b"ok")}
 
 
 def test_fifo_member(tmp_path: Path) -> None:
@@ -238,13 +239,13 @@ def test_zip_dotdot_member(tmp_path: Path) -> None:
         extract_sdist(archive, dest)
 
 
-def test_zip_symlink_member(tmp_path: Path) -> None:
+def test_zip_symlink_member_skipped(tmp_path: Path) -> None:
     with zipfile.ZipFile(str(tmp_path / "a.zip"), "w") as archive:
         archive.writestr("pkg-1.0/PKG-INFO", b"ok")
         add_zip_symlink(archive, "pkg-1.0/link", "/etc/passwd")
     dest = fresh_dir(tmp_path, "dest")
-    with pytest.raises(UnsafeArchiveEntry):
-        extract_sdist(str(tmp_path / "a.zip"), dest)
+    root = extract_sdist(str(tmp_path / "a.zip"), dest)
+    assert sdist_files(root) == {"PKG-INFO": sha256_hex(b"ok")}
 
 
 def test_zip_two_top_level_dirs(tmp_path: Path) -> None:
