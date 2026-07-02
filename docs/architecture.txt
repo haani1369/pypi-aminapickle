@@ -1,0 +1,169 @@
+srcverify architecture
+
+
+purpose
+
+    srcverify answers one question per pinned package in a
+    requirements file: does the sdist published on pypi match the
+    source in the linked git repository at the release point it
+    claims to correspond to, yes or no.
+
+    it is a verification tool. it downloads and inspects file
+    contents only. it never builds, imports, or executes any
+    fetched package code, and it makes no judgment about whether a
+    package is safe. it reports whether the published artifact
+    matches its claimed source.
+
+
+the pipeline
+
+    one invocation processes one requirements file and emits one
+    report. for each package the flow is:
+
+        requirements file
+          -> parse to pinned (name, version) entries
+          -> fetch pypi json metadata
+          -> select and download the sdist
+          -> resolve source repo url + claimed ref
+          -> clone repo at that ref
+          -> diff sdist file tree against repo file tree
+          -> verdict
+
+    all network and filesystem work for a package happens inside a
+    single throwaway workspace directory that is removed on every
+    exit path, including on exception.
+
+
+components
+
+    each component is one module under src/srcverify. modules
+    depend downward only; nothing below the orchestrator imports
+    the orchestrator.
+
+    errors.py
+        the exception hierarchy. one base error and specific
+        subclasses per failure mode (unpinned requirement,
+        metadata fetch failure, no sdist, unresolvable source, ref
+        not found, clone failure, malformed archive). callers
+        catch specific types; nothing is swallowed.
+
+    workspace.py
+        a context manager owning one throwaway temp directory.
+        creates it, yields a path, and removes the whole tree on
+        exit whether the body returns or raises.
+
+    requirements.py
+        parse a requirements.txt into a list of pinned entries. an
+        entry that is not pinned to an exact version (== with a
+        single concrete version, no wildcard) is a hard error that
+        aborts the run before any network work.
+
+    pypi.py
+        given (name, version), fetch the pypi json metadata over
+        https, and select and download the sdist artifact for that
+        exact version into the workspace. verifies the declared
+        digest of the downloaded bytes. treats every response as
+        untrusted and never assumes a field is present.
+
+    sdist.py
+        safely extract a downloaded sdist (.tar.gz) into the
+        workspace and present its contents as a mapping from
+        normalized relative path to file digest. extraction
+        refuses paths that escape the target directory, symlinks,
+        and non-regular entries.
+
+    source.py
+        from the pypi metadata, resolve the source repository url
+        and the git ref the release claims to correspond to. the
+        resolution strategy and its ambiguities are specified in
+        docs/source-resolution.txt. a package with no resolvable
+        repo link, or no resolvable ref, yields a specific error
+        rather than a guess.
+
+    repo.py
+        clone the resolved repository at the resolved ref into the
+        workspace, without executing repo-provided hooks, and
+        present its tracked contents as a mapping from relative
+        path to file digest. the repo url is validated before use;
+        git is never invoked through a shell.
+
+    diff.py
+        compare the sdist tree against the repo tree and produce a
+        list of findings. classification and the normalization
+        policy (which build-generated paths are ignored, how the
+        sdist top-level directory maps to the repo root) are
+        specified in docs/diff.txt.
+
+    verify.py
+        orchestrate the per-package flow: open a workspace, run the
+        steps, and return a package result. converts each specific
+        error into a package verdict rather than propagating it, so
+        one bad package does not abort the whole run.
+
+    report.py
+        aggregate package results into a report and render it in
+        two forms: human-readable text and machine-readable json,
+        from the same underlying structure.
+
+    cli.py
+        parse arguments, drive requirements parsing (whose errors
+        do abort the run) and per-package verification, print the
+        report, and choose the process exit status.
+
+
+the verdict model
+
+    a package result carries one of three statuses. only the first
+    answers the tool's question with "yes".
+
+        match
+            every compared file is present in both the sdist and
+            the repo with identical content, after normalization.
+
+        mismatch
+            the link exists and was checked, but contents diverge:
+            the sdist contains files absent from the repo, or a
+            file's content differs from the repo at the claimed
+            ref.
+
+        unverified
+            the link itself could not be established or checked: no
+            repo url in metadata, an unresolvable ref, a failed
+            metadata fetch, a missing sdist, a clone failure, or a
+            malformed archive. reported with a specific reason,
+            never silently skipped.
+
+    the json form records status, reason, resolved repo url, ref,
+    and the individual findings. the human form prints one clear
+    line per package plus finding detail.
+
+
+exit status
+
+    the process exits non-zero if any package is not "match", so
+    the tool is usable as a gate. a requirements parse error (for
+    example an unpinned entry) aborts before verification and also
+    exits non-zero, with the report not produced.
+
+
+trust and safety boundaries
+
+    * pypi responses, sdist contents, and repo contents are all
+      untrusted input; every field access and archive entry is
+      validated.
+    * archives are extracted, and repos are cloned, only inside the
+      throwaway workspace, cleaned up on every exit path.
+    * no fetched code is ever imported or executed. git runs with
+      hooks disabled and is never handed unsanitized input through
+      a shell.
+    * no bare except; each caught exception is handled into a
+      verdict or re-raised.
+
+
+testing
+
+    every public function has an offline test running against
+    recorded fixtures (saved metadata json, small sdist archives,
+    small local git repos). a separate integration suite, marked so
+    it is deselected by default, exercises the same flow against
+    live pypi and github.
