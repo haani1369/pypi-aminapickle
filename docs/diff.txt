@@ -1,0 +1,73 @@
+diff engine
+
+
+purpose
+
+    compare the sdist file tree against the source repo file tree and
+    report the differences that matter for provenance: files the
+    sdist ships that the repo does not have, and files whose content
+    the sdist changed relative to the repo. these are the code-
+    injection surface. the tool reports these; it does not judge
+    intent.
+
+    module: src/srcverify/diff.py
+
+    both inputs are mappings from posix relative path to lowercase
+    hex sha256, produced by sdist_files and repo_files, which share
+    the same path and digest conventions so paths line up directly.
+
+
+what is compared, what is ignored
+
+    for each path present in the sdist tree, after excluding the
+    build-generated paths below:
+
+        * present in the repo with an equal digest -> match, no
+          finding.
+        * present in the repo with a different digest -> an "altered"
+          finding.
+        * absent from the repo -> an "extra" finding.
+
+    paths present only in the repo are not findings. sdists routinely
+    omit repo files (tests, ci config, docs); an omission is not a
+    provenance failure for what is being installed.
+
+    build-generated paths are excluded from the sdist side before
+    comparison, because they are produced by packaging and never
+    exist in the repo. a path is build-generated if:
+
+        * it is exactly "PKG-INFO", or
+        * any of its "/"-separated components ends with ".egg-info".
+
+
+public interface
+
+    Finding (frozen dataclass)
+        kind: str    "extra" or "altered"
+        path: str    the posix relative path
+
+    diff_trees(sdist: dict[str, str], repo: dict[str, str])
+            -> list[Finding]
+        return the findings for the two trees, sorted by path then
+        kind, so the output is deterministic. an empty list means the
+        sdist matches the repo (every shipped file is present and
+        unchanged). the caller turns a non-empty list into a mismatch
+        verdict.
+
+
+testing
+
+    offline, over in-memory dicts:
+
+        * identical trees produce no findings.
+        * a path only in the sdist produces one "extra" finding.
+        * a shared path with differing digests produces one "altered"
+          finding.
+        * a path only in the repo produces no finding.
+        * a sdist-only "PKG-INFO" produces no finding.
+        * sdist-only paths under a "*.egg-info" component produce no
+          finding.
+        * a mix yields all expected findings in sorted (path, kind)
+          order.
+        * an altered file that would also look extra is reported once
+          as altered, not extra.
