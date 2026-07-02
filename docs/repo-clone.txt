@@ -63,6 +63,15 @@ cloning
         does not re-check the scheme, so tests may clone from a local
         path. the orchestrator always validates first.
 
+    list_remote_refs(url: str) -> list[str]
+        run "git ls-remote --tags --heads" against url and return the
+        short names of its tags and branches (refs/tags/x and
+        refs/heads/x become "x"), dropping peeled "^{}" entries. this
+        lets ref resolution pick a tag that actually exists before a
+        full clone. a url starting with "-" is InvalidRepoUrl; a
+        remote that cannot be listed is CloneError. as with
+        clone_repo, the caller has already validated the url scheme.
+
     repo_files(checkout_dir: str) -> dict[str, str]
         walk the checkout and return a mapping from posix relative
         path to the lowercase hex sha256 of each regular file's

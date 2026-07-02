@@ -4,7 +4,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from srcverify.repo import clone_repo, repo_files, validate_repo_url
 
 from srcverify.errors import (
     CloneError,
@@ -12,6 +11,12 @@ from srcverify.errors import (
     RefNotFound,
     RepoError,
     SrcverifyError,
+)
+from srcverify.repo import (
+    clone_repo,
+    list_remote_refs,
+    repo_files,
+    validate_repo_url,
 )
 
 
@@ -153,6 +158,23 @@ def test_not_a_repo(tmp_path: Path) -> None:
     dest = fresh_dir(tmp_path, "dest")
     with pytest.raises(CloneError):
         clone_repo(src, "v1.0.0", dest)
+
+
+def test_list_remote_refs_includes_tag(tmp_path: Path) -> None:
+    repo_path, _ = make_repo(tmp_path)
+    refs = list_remote_refs(repo_path)
+    assert "v1.0.0" in refs
+
+
+def test_list_remote_refs_rejects_option_url() -> None:
+    with pytest.raises(InvalidRepoUrl):
+        list_remote_refs("--upload-pack=x")
+
+
+def test_list_remote_refs_not_a_repo(tmp_path: Path) -> None:
+    src = fresh_dir(tmp_path, "notrepo")
+    with pytest.raises(CloneError):
+        list_remote_refs(src)
 
 
 def test_error_hierarchy() -> None:

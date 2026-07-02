@@ -53,6 +53,24 @@ def clone_repo(url: str, ref: str, dest_dir: str) -> str:
     return checkout
 
 
+def list_remote_refs(url: str) -> list[str]:
+    if url.startswith("-"):
+        raise InvalidRepoUrl(f"option-like url: {url!r}")
+    result = _run_git(["ls-remote", "--tags", "--heads", "--", url])
+    if result.returncode != 0:
+        raise CloneError(f"git ls-remote failed: {result.stderr.strip()}")
+    refs = []
+    for line in result.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 2 or parts[1].endswith("^{}"):
+            continue
+        for prefix in ("refs/tags/", "refs/heads/"):
+            if parts[1].startswith(prefix):
+                refs.append(parts[1][len(prefix) :])
+                break
+    return refs
+
+
 def repo_files(checkout_dir: str) -> dict[str, str]:
     tree: dict[str, str] = {}
     for dirpath, dirnames, filenames in os.walk(checkout_dir):
@@ -67,7 +85,9 @@ def repo_files(checkout_dir: str) -> dict[str, str]:
     return tree
 
 
-def _run_git(args: list[str], cwd: str) -> subprocess.CompletedProcess[str]:
+def _run_git(
+    args: list[str], cwd: str | None = None
+) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(
             ["git", *_HARDENING, *args],
