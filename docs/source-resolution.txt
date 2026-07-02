@@ -1,0 +1,108 @@
+source resolution
+
+
+purpose
+
+    from the pypi metadata, work out two things: the url of the
+    source repository, and the git ref (tag) the release claims to
+    correspond to. this is the link the whole tool exists to check,
+    so when it cannot be established the package is reported
+    unverified rather than guessed at.
+
+    module: src/srcverify/source.py
+
+    scope for v1: the claim is the version-to-tag convention. we
+    resolve the repo url from the metadata's project_urls and derive
+    candidate tag names from the version, then pick the candidate
+    that actually exists among the repo's refs. pep 740 provenance
+    attestations (an authoritative repo + commit sha) are a
+    deliberate non-goal for v1 and would slot in ahead of the tag
+    heuristics later.
+
+    the functions here are pure over their inputs. the list of a
+    repo's existing refs is obtained separately (repo.list_remote_refs)
+    and passed in, so the whole module is tested offline.
+
+
+recognized hosts
+
+    a url counts as a source repository only if its host, lowercased
+    and with a leading "www." removed, is one of:
+
+        github.com, gitlab.com, bitbucket.org, codeberg.org
+
+    and its path has at least two non-empty segments, read as
+    owner/repo. a trailing ".git" on the repo segment is stripped.
+    such a url normalizes to "https://{host}/{owner}/{repo}"; extra
+    path, query, and fragment are dropped. a non-https url is not a
+    repository.
+
+
+public functions
+
+    resolve_repo_url(metadata: Metadata) -> str
+        choose a repository url from metadata.project_urls.
+
+        preferred labels, compared after lowercasing and removing
+        non-alphanumeric characters, are: source, sourcecode,
+        repository, code, github, gitlab.
+
+        first, among entries whose label is preferred, return the
+        first value that normalizes to a recognized repository.
+        then, among all entries in order, return the first value
+        that normalizes to a recognized repository. if neither pass
+        finds one, raise NoSourceRepo.
+
+    candidate_refs(name: str, version: str) -> list[str]
+        the ordered tag names a release of this version might be
+        tagged with:
+
+            [f"v{version}", version, f"release-{version}",
+             f"{name}-{version}"]
+
+    select_ref(candidates: list[str], available: list[str]) -> str
+        return the first candidate that appears in available (the
+        repo's actual ref names). if none appears, raise
+        UnresolvableRef.
+
+
+error model
+
+    added to src/srcverify/errors.py, subclassing SrcverifyError:
+
+        SourceError      base for this module
+        NoSourceRepo     no recognized repository url in the metadata
+        UnresolvableRef  none of the candidate tags exist in the repo
+
+    both subclass SourceError. neither is swallowed.
+
+
+testing
+
+    offline, constructing Metadata directly:
+
+        resolve_repo_url:
+            * a "Source" github url is returned normalized.
+            * a preferred label (Source) is chosen over a
+              non-preferred one (Homepage) even when the
+              non-preferred appears first.
+            * extra path (/issues, /tree/main) is stripped to
+              owner/repo.
+            * a trailing ".git" is stripped.
+            * a leading "www." host is normalized away.
+            * with no preferred label, a recognized url under any
+              label (Documentation) is still found in the second
+              pass.
+            * a non-https github url is not recognized.
+            * metadata with no recognized url raises NoSourceRepo;
+              empty project_urls raises NoSourceRepo.
+
+        candidate_refs:
+            * candidate_refs("requests", "2.31.0") equals
+              ["v2.31.0", "2.31.0", "release-2.31.0",
+               "requests-2.31.0"].
+
+        select_ref:
+            * returns the first candidate present in available.
+            * candidate order wins when several are available.
+            * no candidate present raises UnresolvableRef.
