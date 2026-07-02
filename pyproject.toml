@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools==82.0.1", "wheel==0.47.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "srcverify"
+version = "0.0.0"
+description = "verify that a pypi sdist matches its claimed source repo"
+requires-python = ">=3.12"
+dependencies = [
+    "packaging==26.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "mypy==2.1.0",
+    "ruff==0.15.20",
+    "black==26.5.1",
+]
+
+[project.scripts]
+srcverify = "srcverify.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+srcverify = ["py.typed"]
+
+[tool.black]
+line-length = 80
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 80
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "B", "UP", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: live network tests, deselected by default",
+]
+addopts = "-m 'not integration'"
