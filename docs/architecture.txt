@@ -174,3 +174,23 @@ testing
     small local git repos). a separate integration suite, marked so
     it is deselected by default, exercises the same flow against
     live pypi and github.
+
+
+known limitations
+
+    * monorepos: the sdist's top-level directory is assumed to map to
+      the repo root. a package published from a subdirectory of a
+      larger repo will diff its whole tree against the repo root and
+      report a wholesale mismatch. detecting the subdirectory is not
+      done.
+    * symlinks are skipped, not compared: a path that is a symlink in
+      the sdist or the repo is left out of the comparison rather than
+      resolved.
+    * attestation trust root: the sigstore fulcio root and
+      intermediate are pinned in fulcio_roots.pem. when sigstore
+      rotates its ca, that file must be refreshed (the current chain
+      is served at https://fulcio.sigstore.dev/api/v2/trustBundle);
+      there is no automatic tuf-based rotation.
+    * the attestation boundary in docs/attestations.txt: rekor
+      transparency-log inclusion and trusted-timestamp certificate
+      validity are not checked.
