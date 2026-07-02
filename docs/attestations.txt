@@ -1,0 +1,114 @@
+attestations
+
+
+purpose
+
+    when a release carries a pep 740 provenance attestation, it names
+    the exact source repository and commit the artifact was built
+    from. that is a stronger, more precise claim than guessing a tag
+    from the version, so srcverify prefers it: it resolves the repo
+    url and the commit to clone directly from the attestation, and
+    falls back to tag heuristics only when no usable attestation
+    exists.
+
+    module: src/srcverify/attestations.py
+
+
+what is trusted, what is not
+
+    srcverify does one independent check on the attestation: the
+    statement's subject sha256 must equal the sha256 of the sdist we
+    actually downloaded, so the provenance is bound to our bytes and
+    not some other artifact.
+
+    srcverify does not re-run the full sigstore/fulcio/rekor
+    signature verification. it relies on pypi having verified the
+    attestation server-side under trusted publishing, and reads the
+    claimed source repo and commit from the certificate. this is a
+    deliberate boundary: bringing the entire sigstore trust stack
+    in-process is a much larger project. the tool's own guarantee is
+    unchanged, "does this sdist match the source at the claimed
+    point"; the attestation only supplies a better claim.
+
+
+the provenance shape (untrusted)
+
+    the pypi integrity api serves, per file, a json object:
+
+        attestation_bundles: [ { publisher, attestations: [ {
+            envelope: { statement, signature },
+            verification_material: { certificate, ... },
+        } ] } ]
+
+    envelope.statement is base64-encoded json (an in-toto statement)
+    whose subject[0].digest.sha256 is the artifact digest.
+    verification_material.certificate is a base64 der x509 (fulcio)
+    certificate carrying, as non-critical extensions:
+
+        1.3.6.1.4.1.57264.1.12  source repository uri
+        1.3.6.1.4.1.57264.1.13  source repository digest (commit)
+
+    each extension value is a der utf8string. every field is treated
+    as untrusted and validated on access.
+
+
+public interface
+
+    provenance_url(name, version, filename) -> str
+        "https://pypi.org/integrity/{name}/{version}/{filename}/
+        provenance", each segment percent-encoded.
+
+    AttestedSource (frozen dataclass)
+        repo_url: str    normalized https repo url
+        commit: str      the source commit sha to check out
+
+    resolve_attested_source(
+        name, version, filename, sdist_sha256, fetch
+    ) -> AttestedSource | None
+        fetch the provenance and, if a usable attestation exists,
+        return the attested repo url and commit; otherwise None so
+        the caller falls back to tag heuristics.
+
+        None (fall back) when:
+            * the provenance cannot be fetched (FetchError, e.g. the
+              404 for a package with no attestations), or
+            * the response has no attestation bundle or attestation.
+
+        AttestationError when a provenance is present for our artifact
+        but cannot be trusted or read:
+            * the subject sha256 does not match sdist_sha256,
+            * the statement or certificate is malformed,
+            * the certificate lacks the source uri/commit extensions,
+            * the source uri is not a valid https repo url.
+
+        raising rather than silently falling back here is deliberate:
+        an attestation that binds to our bytes but contradicts or
+        hides its source is exactly what the tool should surface.
+
+
+error model
+
+    added to src/srcverify/errors.py:
+
+        AttestationError(SrcverifyError)
+            a provenance bound to our artifact could not be trusted
+            or read.
+
+
+testing
+
+    offline, against a recorded fixture
+    (tests/fixtures/provenance_cryptography_44.0.0.json) and a stub
+    fetcher:
+
+        * provenance_url percent-encodes its segments.
+        * the real fixture, with the matching sdist sha256, resolves
+          to repo_url "https://github.com/pyca/cryptography" and the
+          commit from the certificate.
+        * the same fixture with a non-matching sha256 raises
+          AttestationError.
+        * a fetch that raises FetchError yields None.
+        * a provenance object with empty attestation_bundles yields
+          None.
+        * a synthesized provenance whose subject matches but whose
+          certificate is unparseable raises AttestationError.
