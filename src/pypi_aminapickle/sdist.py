@@ -50,17 +50,12 @@ def _detect_format(sdist_path: str) -> str:
 def _extract_tar(sdist_path: str, dest_dir: str) -> str:
     try:
         with tarfile.open(sdist_path, "r:gz") as archive:
-            members = archive.getmembers()
-            top = _single_top([(m.name, _tar_kind(m)) for m in members])
-            for member in members:
-                if _tar_kind(member) not in ("file", "dir"):
-                    continue
-                _place(
-                    dest_dir,
-                    member.name,
-                    _tar_kind(member),
-                    functools.partial(_tar_bytes, archive, member),
-                )
+            classified = [(m, _tar_kind(m)) for m in archive.getmembers()]
+            top = _single_top([(m.name, kind) for m, kind in classified])
+            for member, kind in classified:
+                if kind in ("file", "dir"):
+                    read = functools.partial(_tar_bytes, archive, member)
+                    _place(dest_dir, member.name, kind, read)
             return top
     except (tarfile.TarError, OSError, EOFError) as exc:
         raise MalformedArchive(f"unreadable gzip tar: {exc}") from exc
@@ -69,17 +64,12 @@ def _extract_tar(sdist_path: str, dest_dir: str) -> str:
 def _extract_zip(sdist_path: str, dest_dir: str) -> str:
     try:
         with zipfile.ZipFile(sdist_path) as archive:
-            infos = archive.infolist()
-            top = _single_top([(i.filename, _zip_kind(i)) for i in infos])
-            for info in infos:
-                if _zip_kind(info) not in ("file", "dir"):
-                    continue
-                _place(
-                    dest_dir,
-                    info.filename,
-                    _zip_kind(info),
-                    functools.partial(archive.read, info),
-                )
+            classified = [(i, _zip_kind(i)) for i in archive.infolist()]
+            top = _single_top([(i.filename, kind) for i, kind in classified])
+            for info, kind in classified:
+                if kind in ("file", "dir"):
+                    read = functools.partial(archive.read, info)
+                    _place(dest_dir, info.filename, kind, read)
             return top
     except (zipfile.BadZipFile, OSError) as exc:
         raise MalformedArchive(f"unreadable zip: {exc}") from exc

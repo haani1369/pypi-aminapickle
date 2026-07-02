@@ -29,14 +29,6 @@ def add_file(tar: tarfile.TarFile, name: str, data: bytes) -> None:
     tar.addfile(info, io.BytesIO(data))
 
 
-def add_dir(tar: tarfile.TarFile, name: str) -> None:
-    info = tarfile.TarInfo(name)
-    info.type = tarfile.DIRTYPE
-    info.mode = 0o755
-    info.mtime = 0
-    tar.addfile(info)
-
-
 def add_special(
     tar: tarfile.TarFile,
     name: str,
