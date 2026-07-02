@@ -48,3 +48,15 @@ class NoSdist(PypiError):
 
 class IntegrityError(PypiError):
     """downloaded bytes do not match the declared digest."""
+
+
+class SdistError(SrcverifyError):
+    """base for sdist extraction failures."""
+
+
+class MalformedArchive(SdistError):
+    """not a readable gzip tar, or no single top-level directory."""
+
+
+class UnsafeArchiveEntry(SdistError):
+    """a member escapes the target, is a link, or is a special file."""
