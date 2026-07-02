@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import shutil
 import subprocess
 from pathlib import PurePath
 from urllib.parse import urlparse
@@ -39,14 +40,35 @@ def clone_repo(url: str, ref: str, dest_dir: str) -> str:
     if ref.startswith("-"):
         raise RefNotFound(f"option-like ref: {ref!r}")
     checkout = os.path.join(dest_dir, "repo")
-    clone = _run_git(
-        ["clone", "--quiet", "--no-checkout", "--", url, checkout],
-        cwd=dest_dir,
+    if _shallow_fetch(url, ref, checkout):
+        return checkout
+    return _full_clone(url, ref, checkout)
+
+
+def _shallow_fetch(url: str, ref: str, checkout: str) -> bool:
+    init = _run_git(["init", "--quiet", checkout])
+    if init.returncode != 0:
+        shutil.rmtree(checkout, ignore_errors=True)
+        return False
+    fetch = _run_git(
+        ["-C", checkout, "fetch", "--depth", "1", "--quiet", "--", url, ref]
     )
+    if fetch.returncode == 0:
+        detach = _run_git(
+            ["-C", checkout, "checkout", "--quiet", "--detach", "FETCH_HEAD"]
+        )
+        if detach.returncode == 0:
+            return True
+    shutil.rmtree(checkout, ignore_errors=True)
+    return False
+
+
+def _full_clone(url: str, ref: str, checkout: str) -> str:
+    clone = _run_git(["clone", "--quiet", "--no-checkout", "--", url, checkout])
     if clone.returncode != 0:
         raise CloneError(f"git clone failed: {clone.stderr.strip()}")
     result = _run_git(
-        ["checkout", "--quiet", "--detach", ref, "--"], cwd=checkout
+        ["-C", checkout, "checkout", "--quiet", "--detach", ref, "--"]
     )
     if result.returncode != 0:
         raise RefNotFound(f"ref {ref!r} not found: {result.stderr.strip()}")

@@ -118,6 +118,20 @@ def test_clone_at_commit_sha(tmp_path: Path) -> None:
     assert repo_files(checkout) == EXPECTED_TREE
 
 
+def test_clone_at_unadvertised_commit(tmp_path: Path) -> None:
+    repo_path, _ = make_repo(tmp_path)
+    # a second commit makes the first commit an unadvertised, reachable
+    # object that a local shallow fetch cannot serve, forcing the
+    # full-clone fallback.
+    (Path(repo_path) / "NEW.txt").write_bytes(b"new\n")
+    git(repo_path, "add", "-A")
+    git(repo_path, "commit", "-m", "second")
+    first_commit = git(repo_path, "rev-parse", "HEAD~1").strip()
+    dest = fresh_dir(tmp_path, "dest")
+    checkout = clone_repo(repo_path, first_commit, dest)
+    assert repo_files(checkout) == EXPECTED_TREE
+
+
 def test_git_dir_excluded(tmp_path: Path) -> None:
     repo_path, _ = make_repo(tmp_path)
     dest = fresh_dir(tmp_path, "dest")

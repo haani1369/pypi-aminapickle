@@ -34,8 +34,18 @@ url validation
 cloning
 
     clone_repo(url: str, ref: str, dest_dir: str) -> str
-        clone url into a subdirectory of dest_dir with no working
-        tree, then check out ref detached. return the checkout path.
+        fetch ref from url into a subdirectory of dest_dir and check
+        it out detached. return the checkout path.
+
+        it first tries a shallow depth-1 fetch of just ref (a tag,
+        branch, or commit), which is fast even for large repos. if
+        the shallow fetch cannot serve ref (for example an
+        unadvertised commit on a host that does not allow fetching
+        arbitrary reachable commits), it falls back to a full clone
+        followed by a detached checkout of ref. the fallback also
+        makes the error precise: an unreachable or non-repository url
+        is CloneError, and a ref that genuinely does not exist is
+        RefNotFound.
 
         git is invoked as an argument vector (never a shell) with a
         fixed timeout and this hardening, so an untrusted repo cannot
@@ -54,10 +64,6 @@ cloning
         both url and ref are additionally refused if they start with
         "-", and are passed after "--", so neither can be read as an
         option.
-
-        a clone that fails (unreachable, auth required, not a repo)
-        is CloneError. a checkout that fails because the ref does not
-        exist is RefNotFound.
 
         clone_repo assumes url already passed validate_repo_url; it
         does not re-check the scheme, so tests may clone from a local
@@ -107,6 +113,9 @@ testing
         * cloning at a tag yields a checkout whose repo_files matches
           the committed files and their sha256 digests.
         * cloning at the commit sha of that tag yields the same tree.
+        * cloning at an older, unadvertised commit (which the shallow
+          fetch cannot serve locally) still yields that commit's tree
+          via the full-clone fallback.
         * .git is absent from repo_files output.
         * a committed symlink does not appear in repo_files.
         * a nonexistent ref raises RefNotFound.
