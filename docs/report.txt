@@ -1,0 +1,67 @@
+report
+
+
+purpose
+
+    aggregate the per-package results into one report and render it in
+    two forms from the same data: human-readable text and machine-
+    readable json. the report answers, per package, the tool's one
+    question, and carries the detail behind each answer.
+
+    module: src/srcverify/report.py
+
+
+the result shape
+
+    PackageResult (frozen dataclass), produced by the orchestrator
+    and consumed here:
+
+        name: str
+        version: str
+        status: str            "match", "mismatch", or "unverified"
+        reason: str            short human phrase for the status
+        repo_url: str | None   resolved repo, if it got that far
+        ref: str | None        resolved ref, if it got that far
+        findings: list[Finding]   diff findings, empty unless mismatch
+
+    only status == "match" answers "yes". both "mismatch" (contents
+    diverged) and "unverified" (the link could not be established)
+    answer "no", and are distinguished by status and reason.
+
+
+public interface
+
+    all_match(results: list[PackageResult]) -> bool
+        true when every result is "match". this is the gate the cli
+        turns into its exit status.
+
+    render_text(results: list[PackageResult]) -> str
+        one line per package:
+            "[MATCH] name==version -> repo_url@ref"
+            "[MISMATCH] name==version -> repo_url@ref (reason)"
+            "[UNVERIFIED] name==version (reason)"
+        each finding of a mismatch is printed on its own indented
+        line, "    kind: path", in the order given. the text ends
+        with a summary line counting each status.
+
+    render_json(results: list[PackageResult]) -> str
+        a json object, indented, with:
+            "ok": all_match(results)
+            "results": a list, each
+                {name, version, status, reason, repo_url, ref,
+                 findings: [{kind, path}, ...]}
+        repo_url and ref are null when unresolved. the output is
+        stable for a given input (insertion order preserved).
+
+
+testing
+
+    offline, constructing PackageResults directly:
+
+        * all_match is true only when every result is "match".
+        * render_json round-trips through json.loads to the expected
+          structure, including null repo_url/ref and nested findings,
+          and "ok" reflects all_match.
+        * render_text contains the right tag for each status, the
+          repo@ref for a resolved package, an indented line per
+          finding, and a summary line with the counts.
