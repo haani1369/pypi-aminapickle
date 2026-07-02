@@ -1,0 +1,92 @@
+sdist extraction
+
+
+purpose
+
+    take a downloaded sdist archive and turn its contents into a
+    mapping from relative path to file digest, so the diff stage can
+    compare it against the source repo. the archive is untrusted:
+    extraction must never write outside the target directory, follow
+    or create a symlink, or materialize a special file.
+
+    module: src/srcverify/sdist.py
+
+
+the sdist shape assumed
+
+    a pypi sdist is a gzip-compressed tar whose members all live
+    under a single top-level directory named "{name}-{version}"
+    (for example "requests-2.31.0/"). that directory maps to the
+    root of the source repo. build-generated files such as
+    PKG-INFO live directly under it.
+
+    the top-level directory is stripped when building the tree, so a
+    member "requests-2.31.0/src/requests/__init__.py" becomes the
+    key "src/requests/__init__.py".
+
+
+public functions
+
+    extract_sdist(sdist_path: str, dest_dir: str) -> str
+        open the archive at sdist_path as a gzip tar and extract it
+        into dest_dir. every member is validated before anything is
+        written; the first offending member aborts extraction with a
+        specific error and nothing partially useful is relied upon
+        (dest_dir is a throwaway owned by the caller). returns the
+        filesystem path of the single stripped top-level directory.
+
+        validation, applied to every member:
+            * the member name, normalized, must stay within
+              dest_dir: no absolute paths, no ".." components, no
+              leading "/". a member that would resolve outside is
+              UnsafeArchiveEntry.
+            * symlinks and hardlinks are UnsafeArchiveEntry.
+            * anything that is not a regular file or directory
+              (devices, fifos, sockets) is UnsafeArchiveEntry.
+            * all members must share one top-level path component;
+              zero members, or more than one distinct top-level
+              component, is MalformedArchive.
+
+        an archive that is not a readable gzip tar is
+        MalformedArchive.
+
+    sdist_files(root: str) -> dict[str, str]
+        walk the directory tree at root and return a mapping from
+        posix relative path (forward slashes, relative to root) to
+        the lowercase hex sha256 of each regular file's bytes.
+        directories are not entries. the walk assumes extraction
+        already removed any symlink or special file.
+
+
+error model
+
+    added to src/srcverify/errors.py, subclassing SrcverifyError:
+
+        SdistError          base for this module
+        MalformedArchive    not a readable gzip tar, or no single
+                            top-level directory
+        UnsafeArchiveEntry  a member escapes dest_dir, is a link, or
+                            is a special file
+
+    both subclass SdistError. neither is swallowed.
+
+
+testing
+
+    offline, building tiny tar.gz archives in memory or in tmp_path
+    with the tarfile module:
+
+        * a normal archive with a single top-level dir extracts, and
+          extract_sdist returns that dir; sdist_files on it yields
+          the expected relative paths and matching sha256 digests.
+        * a member with an absolute path raises UnsafeArchiveEntry.
+        * a member with a ".." component raises UnsafeArchiveEntry.
+        * a symlink member raises UnsafeArchiveEntry.
+        * a hardlink member raises UnsafeArchiveEntry.
+        * a fifo/device member raises UnsafeArchiveEntry.
+        * a non-gzip / non-tar file raises MalformedArchive.
+        * an archive whose members span two different top-level
+          directories raises MalformedArchive.
+        * an empty archive raises MalformedArchive.
+        * after any rejected archive, nothing escaped dest_dir (the
+          parent of dest_dir gains no entries).
