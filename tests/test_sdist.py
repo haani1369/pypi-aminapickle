@@ -1,6 +1,8 @@
 import hashlib
 import io
+import stat
 import tarfile
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -54,6 +56,19 @@ def make_archive(path: Path, members: list[tuple[str, bytes]]) -> str:
         for name, data in members:
             add_file(tar, name, data)
     return str(path)
+
+
+def make_zip(path: Path, members: list[tuple[str, bytes]]) -> str:
+    with zipfile.ZipFile(str(path), "w") as archive:
+        for name, data in members:
+            archive.writestr(name, data)
+    return str(path)
+
+
+def add_zip_symlink(archive: zipfile.ZipFile, name: str, target: str) -> None:
+    info = zipfile.ZipInfo(name)
+    info.external_attr = (stat.S_IFLNK | 0o777) << 16
+    archive.writestr(info, target)
 
 
 def fresh_dir(tmp_path: Path, name: str) -> str:
@@ -182,3 +197,69 @@ def test_rejected_archive_stays_contained(tmp_path: Path) -> None:
     assert after == before
     assert not (box / "escape.py").exists()
     assert not (tmp_path / "escape.py").exists()
+
+
+def test_normal_zip(tmp_path: Path) -> None:
+    pkg_info = b"Metadata-Version: 2.1\nName: pkg\n"
+    init = b"__version__ = '1.0'\n"
+    archive = make_zip(
+        tmp_path / "pkg-1.0.zip",
+        [
+            ("pkg-1.0/PKG-INFO", pkg_info),
+            ("pkg-1.0/src/pkg/__init__.py", init),
+        ],
+    )
+    dest = fresh_dir(tmp_path, "dest")
+    root = extract_sdist(archive, dest)
+    assert Path(root).name == "pkg-1.0"
+    assert sdist_files(root) == {
+        "PKG-INFO": sha256_hex(pkg_info),
+        "src/pkg/__init__.py": sha256_hex(init),
+    }
+
+
+def test_zip_absolute_path_member(tmp_path: Path) -> None:
+    archive = make_zip(
+        tmp_path / "a.zip",
+        [("pkg-1.0/PKG-INFO", b"ok"), ("/etc/passwd", b"root")],
+    )
+    dest = fresh_dir(tmp_path, "dest")
+    with pytest.raises(UnsafeArchiveEntry):
+        extract_sdist(archive, dest)
+
+
+def test_zip_dotdot_member(tmp_path: Path) -> None:
+    archive = make_zip(
+        tmp_path / "a.zip",
+        [("pkg-1.0/PKG-INFO", b"ok"), ("pkg-1.0/../evil.py", b"evil")],
+    )
+    dest = fresh_dir(tmp_path, "dest")
+    with pytest.raises(UnsafeArchiveEntry):
+        extract_sdist(archive, dest)
+
+
+def test_zip_symlink_member(tmp_path: Path) -> None:
+    with zipfile.ZipFile(str(tmp_path / "a.zip"), "w") as archive:
+        archive.writestr("pkg-1.0/PKG-INFO", b"ok")
+        add_zip_symlink(archive, "pkg-1.0/link", "/etc/passwd")
+    dest = fresh_dir(tmp_path, "dest")
+    with pytest.raises(UnsafeArchiveEntry):
+        extract_sdist(str(tmp_path / "a.zip"), dest)
+
+
+def test_zip_two_top_level_dirs(tmp_path: Path) -> None:
+    archive = make_zip(
+        tmp_path / "a.zip",
+        [("a-1.0/x", b"x"), ("b-2.0/y", b"y")],
+    )
+    dest = fresh_dir(tmp_path, "dest")
+    with pytest.raises(MalformedArchive):
+        extract_sdist(archive, dest)
+
+
+def test_empty_zip(tmp_path: Path) -> None:
+    with zipfile.ZipFile(str(tmp_path / "a.zip"), "w"):
+        pass
+    dest = fresh_dir(tmp_path, "dest")
+    with pytest.raises(MalformedArchive):
+        extract_sdist(str(tmp_path / "a.zip"), dest)

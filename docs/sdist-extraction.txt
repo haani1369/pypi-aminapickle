@@ -14,11 +14,13 @@ purpose
 
 the sdist shape assumed
 
-    a pypi sdist is a gzip-compressed tar whose members all live
-    under a single top-level directory named "{name}-{version}"
-    (for example "requests-2.31.0/"). that directory maps to the
-    root of the source repo. build-generated files such as
-    PKG-INFO live directly under it.
+    a pypi sdist is either a gzip-compressed tar or a zip, whose
+    members all live under a single top-level directory named
+    "{name}-{version}" (for example "requests-2.31.0/"). the format
+    is detected from the leading magic bytes (gzip 1f 8b, zip "PK"),
+    not the filename. that directory maps to the root of the source
+    repo. build-generated files such as PKG-INFO live directly under
+    it.
 
     the top-level directory is stripped when building the tree, so a
     member "requests-2.31.0/src/requests/__init__.py" becomes the
@@ -28,27 +30,30 @@ the sdist shape assumed
 public functions
 
     extract_sdist(sdist_path: str, dest_dir: str) -> str
-        open the archive at sdist_path as a gzip tar and extract it
-        into dest_dir. every member is validated before anything is
-        written; the first offending member aborts extraction with a
-        specific error and nothing partially useful is relied upon
-        (dest_dir is a throwaway owned by the caller). returns the
-        filesystem path of the single stripped top-level directory.
+        detect the archive format from its magic bytes and extract it
+        into dest_dir. the same validation and containment rules
+        apply to both the tar and zip formats. every member is
+        validated before anything is written; the first offending
+        member aborts extraction with a specific error and nothing
+        partially useful is relied upon (dest_dir is a throwaway
+        owned by the caller). returns the filesystem path of the
+        single stripped top-level directory.
 
         validation, applied to every member:
             * the member name, normalized, must stay within
               dest_dir: no absolute paths, no ".." components, no
               leading "/". a member that would resolve outside is
               UnsafeArchiveEntry.
-            * symlinks and hardlinks are UnsafeArchiveEntry.
+            * symlinks (and, for tar, hardlinks) are
+              UnsafeArchiveEntry.
             * anything that is not a regular file or directory
               (devices, fifos, sockets) is UnsafeArchiveEntry.
             * all members must share one top-level path component;
               zero members, or more than one distinct top-level
               component, is MalformedArchive.
 
-        an archive that is not a readable gzip tar is
-        MalformedArchive.
+        an input that is neither a readable gzip tar nor a readable
+        zip is MalformedArchive.
 
     sdist_files(root: str) -> dict[str, str]
         walk the directory tree at root and return a mapping from
@@ -63,8 +68,8 @@ error model
     added to src/pypi_aminapickle/errors.py, subclassing PypiAminapickleError:
 
         SdistError          base for this module
-        MalformedArchive    not a readable gzip tar, or no single
-                            top-level directory
+        MalformedArchive    not a readable gzip tar or zip, or no
+                            single top-level directory
         UnsafeArchiveEntry  a member escapes dest_dir, is a link, or
                             is a special file
 
@@ -84,9 +89,16 @@ testing
         * a symlink member raises UnsafeArchiveEntry.
         * a hardlink member raises UnsafeArchiveEntry.
         * a fifo/device member raises UnsafeArchiveEntry.
-        * a non-gzip / non-tar file raises MalformedArchive.
+        * a file that is neither a gzip tar nor a zip raises
+          MalformedArchive.
         * an archive whose members span two different top-level
           directories raises MalformedArchive.
         * an empty archive raises MalformedArchive.
         * after any rejected archive, nothing escaped dest_dir (the
           parent of dest_dir gains no entries).
+
+    the same cases are covered for zip archives built with the
+    zipfile module: a normal single-top zip extracts and hashes
+    correctly, and zip members with an absolute path, a ".."
+    component, a symlink (unix mode), or spanning two top-level
+    directories, and an empty zip, are rejected as above.
