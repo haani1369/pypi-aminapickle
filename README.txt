@@ -1,13 +1,37 @@
 pypi-aminapickle
 
 
-pypi-aminapickle checks whether the sdist published on pypi for a pinned
-package matches the source in its linked git repository at the release
-it claims to correspond to. it answers one question per package: does
-the artifact you are about to install match its public source, yes or
-no. it downloads and compares file contents only; it never builds,
+most dependency scanners check a package against a list of known
+cves. none of them check whether the code you are installing is the
+code the maintainer actually published on github. pypi-aminapickle
+does exactly that. given a pinned requirements file, it answers one
+question per package: does the sdist published on pypi match the
+source in its linked git repository at the release it claims to come
+from, yes or no.
+
+it downloads and compares file contents only. it never builds,
 imports, or runs any fetched code, and it makes no judgment about
-whether a package is safe.
+whether a package is safe; it reports whether the artifact matches
+its public source.
+
+
+how it works
+
+    for each pinned package it fetches the pypi metadata, downloads
+    and safely unpacks the sdist, finds the source point, clones the
+    repo there, and diffs the two file trees.
+
+    to find the source point it prefers a pep 740 provenance
+    attestation: it binds the attestation to the downloaded sdist by
+    digest, verifies the dsse signature, that the certificate chains
+    to the pinned sigstore fulcio roots, and that its identity is the
+    source repo, then clones the exact commit. with no attestation it
+    resolves the repo from the project's urls and matches the version
+    to an existing tag.
+
+    build noise that is not real divergence (PKG-INFO, *.egg-info, a
+    setuptools-rewritten setup.cfg) is normalized away, so genuine
+    differences stand out.
 
 
 install
@@ -18,52 +42,62 @@ install
     pip install --no-deps -e .
 
 
-use
+usage
 
     pypi-aminapickle requirements.txt          human-readable report
     pypi-aminapickle --json requirements.txt   machine-readable report
+    pypi-aminapickle --jobs 16 requirements.txt   set the parallelism
 
-the requirements file must pin every package to an exact version
-(name==version); an unpinned entry is a hard error. the process exits
-0 when every package matches, 1 when any does not, and 2 on a bad
-requirements file.
+    every package must be pinned to an exact version (name==version);
+    an unpinned entry is a hard error. each package is reported as one
+    of three verdicts, and only match answers the question with "yes":
 
-to find the source point, pypi-aminapickle prefers a pep 740 provenance
-attestation when the release has one: it binds the attestation to the
-downloaded sdist by digest and clones the exact commit it names. when
-there is no attestation it falls back to resolving the repo from the
-package's project urls and matching the version to an existing tag.
+        match       every shipped file is present in the repo,
+                    unchanged.
+        mismatch    the sdist adds or alters files relative to the
+                    repo.
+        unverified  the link could not be established (no repo, an
+                    unresolvable tag, a failed download, and so on).
 
-each package is reported as one of:
-
-    match        every shipped file is present in the repo, unchanged.
-    mismatch     the sdist adds or alters files relative to the repo.
-    unverified   the link could not be established (no repo url, an
-                 unresolvable tag, a failed download, and so on).
+    the process exits 0 when every package matched, 1 when any did
+    not, and 2 on a bad requirements file, so it works as a ci gate.
 
 
-examples
+example
 
-    examples/requirements.txt is a guided tour over real packages that
-    exercise every verdict: an attestation-verified match, a calver
-    tag resolved by normalization, sdists that ship files absent from
-    their source (a divergence), and a package with no recognized
-    repo. run it and read examples/README.txt for what each case
-    shows:
+    examples/requirements.txt is a tour over real packages. running
+    it (commit and long paths abbreviated for width):
 
-        pypi-aminapickle examples/requirements.txt
+        $ pypi-aminapickle examples/requirements.txt
+        [MATCH] id==1.5.0 -> https://github.com/di/id@1f665ce4...
+        [MATCH] certifi==2024.2.2 -> .../python-certifi@2024.02.02
+        [MISMATCH] distlib==0.3.8 -> .../distlib@0.3.8 (4 differing files)
+            extra: tests/keys/.gpg-v21-migrated
+            extra: tests/keys/private-keys-v1.d/89643D01...key
+            extra: tests/keys/private-keys-v1.d/8BE462CC...key
+            extra: tests/keys/random_seed
+        [MISMATCH] pyyaml==6.0.2 -> .../pyyaml@6.0.2 (1 differing file)
+            extra: packaging/__pycache__/_pyyaml_pep517.cpython-312.pyc
+        [UNVERIFIED] pytz==2024.1 (no recognized repository url in metadata)
+        5 packages: 2 match, 2 mismatch, 1 unverified
+
+    id verifies through a signed attestation and matches its exact
+    build commit. certifi's calver tag "2024.02.02" is resolved for
+    the pin "2024.2.2". distlib's sdist ships gpg private test keys
+    absent from its source, and pyyaml's ships a compiled .pyc; both
+    are reported. pytz lists no repository on a recognized host, so
+    the link cannot be established. see examples/README.txt for the
+    walkthrough.
 
 
 develop
 
-    the design lives in docs/. each component has a spec written before
-    its tests and implementation. run the checks with:
+    the design lives in docs/ (start with docs/architecture.txt); each
+    component has a spec written before its tests and implementation.
+    the checks, also run in ci:
 
         black --check src tests
         ruff check src tests
         mypy
         pytest                 offline suite
         pytest -m integration  live pypi + github suite
-
-see docs/architecture.txt for the component map and docs/ci.txt for
-the gate.
