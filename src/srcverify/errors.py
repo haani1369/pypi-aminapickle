@@ -28,3 +28,23 @@ class UnsupportedRequirementLine(RequirementsError):
 
 class ConflictingPins(RequirementsError):
     """one name is pinned to two different versions."""
+
+
+class PypiError(SrcverifyError):
+    """base for pypi metadata and download failures."""
+
+
+class FetchError(PypiError):
+    """a network read failed or violated the transport policy."""
+
+
+class MetadataError(PypiError):
+    """a pypi response is not the json shape we require."""
+
+
+class NoSdist(PypiError):
+    """no usable sdist artifact exists for the version."""
+
+
+class IntegrityError(PypiError):
+    """downloaded bytes do not match the declared digest."""
